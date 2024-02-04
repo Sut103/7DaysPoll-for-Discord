@@ -2,7 +2,7 @@
 # 7DaysPoll-for-Discord
 Polling on 7 potential dates starting from the specified date.
 
-## Manage slash commands
+## Manage Slash Commands
 ### Register
 ```
 go run command/* register
@@ -12,3 +12,17 @@ go run command/* register
 ```
 go run command/* delete
 ```
+
+## Usage on AWS Lambda
+### Run locally
+```
+docker build --platform linux/amd64 -t 7dayspoll:latest .
+docker run -p 9000:8080 \
+ --entrypoint /usr/local/bin/aws-lambda-rie \
+ 7dayspoll:latest /main
+```
+
+### Run on AWS
+Please build the container image and push to your ECR.
+Next creating the Lambda function with container image on your AWS account.
+(Require environment variable: DISCORD_PUBLIC_KEY)
