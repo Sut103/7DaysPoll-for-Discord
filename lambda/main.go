@@ -48,20 +48,6 @@ func Verify(r *events.APIGatewayProxyRequest, key ed25519.PublicKey) bool {
 	return ed25519.Verify(key, msg.Bytes(), sig)
 }
 
-func pong() (events.APIGatewayProxyResponse, error) {
-	body := discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponsePong,
-	}
-	json, err := discordgo.Marshal(body)
-	if err != nil {
-
-		log.Println(http.StatusInternalServerError, "json marshal error:", err)
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-	}
-
-	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
-}
-
 func get7Days(day time.Time) [7]time.Time {
 	days := [7]time.Time{}
 
@@ -85,28 +71,46 @@ func getTZ(lang string) (*time.Location, error) {
 	return time.LoadLocation(tz)
 }
 
-func poll(Locale string) (events.APIGatewayProxyResponse, error) {
+func get7Emojis() []string {
+	return []string{
+		"1⃣",
+		"2⃣",
+		"3⃣",
+		"4⃣",
+		"5⃣",
+		"6⃣",
+		"7⃣",
+	}
+}
+
+func pong() (events.APIGatewayProxyResponse, error) {
+	body := discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponsePong,
+	}
+	json, err := discordgo.Marshal(body)
+	if err != nil {
+
+		log.Println(http.StatusInternalServerError, "json marshal error:", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+
+	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
+}
+
+func poll(interaction *discordgo.Interaction) (events.APIGatewayProxyResponse, error) {
 	content := ""
-	timezone, err := getTZ(Locale)
+	timezone, err := getTZ(string(interaction.Locale))
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
-	days := get7Days(time.Now().Local().In(timezone))
 
-	emoji7 := []string{
-		"one",
-		"two",
-		"three",
-		"four",
-		"five",
-		"six",
-		"seven",
-	}
+	days := get7Days(time.Now().Local().In(timezone))
+	emojis := get7Emojis()
 
 	for i, day := range days {
-		emoji := emoji7[i]
-		content += fmt.Sprintf(":%s:: %d/%d/%d\n", string(emoji), day.Year(), day.Month(), day.Day())
+		emoji := emojis[i]
+		content += fmt.Sprintf(":%s:: %d/%d/%d\n", emoji, day.Year(), day.Month(), day.Day())
 	}
 
 	body := discordgo.InteractionResponse{
@@ -139,14 +143,10 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 
 	interaction := discordgo.Interaction{}
 	discordgo.Unmarshal([]byte(event.Body), &interaction)
-	// if err != nil {
-	// 	log.Println(http.StatusInternalServerError, "json unmarshal error:", err)
-	// 	return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-	// }
 
 	switch interaction.Type {
 	case discordgo.InteractionApplicationCommand:
-		return poll(discordgo.Locales[interaction.Locale])
+		return poll(&interaction)
 
 	case discordgo.InteractionPing:
 		return pong()
