@@ -5,12 +5,12 @@ Polling on 7 potential dates starting from the specified date.
 ## Manage Slash Commands
 ### Register
 ```
-go run command/* register
+go run manage/* register
 ```
 
 ### Delete
 ```
-go run command/* delete
+go run manage/* delete
 ```
 
 ## Usage on AWS Lambda
