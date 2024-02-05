@@ -5,16 +5,22 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/bwmarrin/discordgo"
 )
 
-func verify(r *events.APIGatewayProxyRequest, key ed25519.PublicKey) bool {
+func Verify(r *events.APIGatewayProxyRequest, key ed25519.PublicKey) bool {
+	if os.Getenv("ENV") == "dev" {
+		return true
+	}
+
 	var msg bytes.Buffer
 
 	xse, exists := r.Headers["x-signature-ed25519"]
@@ -48,47 +54,89 @@ func pong() (events.APIGatewayProxyResponse, error) {
 	}
 	json, err := discordgo.Marshal(body)
 	if err != nil {
-		return events.APIGatewayProxyResponse{}, err
+
+		log.Println(http.StatusInternalServerError, "json marshal error:", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	log.Println(http.StatusOK, "PONG!")
+	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
+}
+
+func get7Days(day time.Time) [7]time.Time {
+	days := [7]time.Time{}
+
+	for i := range days {
+		days[i] = day.AddDate(0, 0, i)
+	}
+
+	return days
+}
+
+func poll() (events.APIGatewayProxyResponse, error) {
+	content := ""
+	days := get7Days(time.Now())
+	emoji7 := []string{
+		"one",
+		"two",
+		"three",
+		"four",
+		"five",
+		"six",
+		"seven",
+	}
+
+	for i, day := range days {
+		emoji := emoji7[i]
+		content += fmt.Sprintf(":%s:: %d/%d/%d\n", string(emoji), day.Year(), day.Month(), day.Day())
+	}
+
+	body := discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: content,
+		},
+	}
+
+	json, err := discordgo.Marshal(body)
+	if err != nil {
+		log.Println(http.StatusInternalServerError, "json marshal error:", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+
 	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
 }
 
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	fmt.Printf("%+v\n\n", event)
 	publicKey := os.Getenv("DISCORD_PUBLIC_KEY")
 	keyString, err := hex.DecodeString(publicKey)
 	if err != nil {
-		log.Println(http.StatusInternalServerError, "pub_key decode error", err)
+		log.Println(http.StatusInternalServerError, "publickey decode error:", err)
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
-	if !verify(&event, keyString) {
-		log.Println(http.StatusUnauthorized, "invalid request signature")
+	if !Verify(&event, keyString) {
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
 	}
 
 	interaction := discordgo.Interaction{}
-	err = discordgo.Unmarshal([]byte(event.Body), &interaction)
-	if err != nil {
-		log.Println(http.StatusInternalServerError, "json.unmarshal error", err)
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-	}
-
-	if err != nil {
-		log.Println(http.StatusInternalServerError, "json.marshal error", err)
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-	}
+	discordgo.Unmarshal([]byte(event.Body), &interaction)
+	// if err != nil {
+	// 	log.Println(http.StatusInternalServerError, "json unmarshal error:", err)
+	// 	return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	// }
 
 	switch interaction.Type {
 	case discordgo.InteractionApplicationCommand:
-		log.Println(http.StatusOK, "COMMAND!")
+		return poll()
 
 	case discordgo.InteractionPing:
 		return pong()
-	}
 
-	return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, nil
+	default:
+		log.Println(http.StatusBadRequest, "bad request")
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusBadRequest}, nil
+	}
 }
 
 func main() {
