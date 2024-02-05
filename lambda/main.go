@@ -72,9 +72,28 @@ func get7Days(day time.Time) [7]time.Time {
 	return days
 }
 
-func poll() (events.APIGatewayProxyResponse, error) {
+func getTZ(lang string) (*time.Location, error) {
+	timezone := map[string]string{
+		"Japanese": "Asia/Tokyo",
+	}
+
+	tz, ok := timezone[lang]
+	if !ok {
+		return time.Local, nil
+	}
+
+	return time.LoadLocation(tz)
+}
+
+func poll(Locale string) (events.APIGatewayProxyResponse, error) {
 	content := ""
-	days := get7Days(time.Now())
+	timezone, err := getTZ(Locale)
+	if err != nil {
+		log.Println(http.StatusInternalServerError, "timezone error", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+	days := get7Days(time.Now().Local().In(timezone))
+
 	emoji7 := []string{
 		"one",
 		"two",
@@ -107,7 +126,6 @@ func poll() (events.APIGatewayProxyResponse, error) {
 }
 
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	fmt.Printf("%+v\n\n", event)
 	publicKey := os.Getenv("DISCORD_PUBLIC_KEY")
 	keyString, err := hex.DecodeString(publicKey)
 	if err != nil {
@@ -128,7 +146,7 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 
 	switch interaction.Type {
 	case discordgo.InteractionApplicationCommand:
-		return poll()
+		return poll(discordgo.Locales[interaction.Locale])
 
 	case discordgo.InteractionPing:
 		return pong()
