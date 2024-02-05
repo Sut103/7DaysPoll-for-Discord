@@ -110,7 +110,7 @@ func poll(interaction *discordgo.Interaction) (events.APIGatewayProxyResponse, e
 
 	for i, day := range days {
 		emoji := emojis[i]
-		content += fmt.Sprintf(":%s:: %d/%d/%d\n", emoji, day.Year(), day.Month(), day.Day())
+		content += fmt.Sprintf("%s %d/%d/%d\n", emoji, day.Year(), day.Month(), day.Day())
 	}
 
 	body := discordgo.InteractionResponse{
