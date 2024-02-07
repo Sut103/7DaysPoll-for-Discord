@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
+	"github.com/bwmarrin/discordgo"
 )
 
 func Verify(r *events.APIGatewayProxyRequest, pk ed25519.PublicKey) bool {
@@ -52,4 +53,18 @@ func GetTimeZone(lang string) (*time.Location, error) {
 	}
 
 	return time.LoadLocation(tz)
+}
+
+func GetWeekdays(lang discordgo.Locale) []string {
+	weekdays := map[discordgo.Locale][]string{
+		discordgo.EnglishUS: {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
+		discordgo.Japanese:  {"日", "月", "火", "水", "木", "金", "土"},
+	}
+
+	w, ok := weekdays[lang]
+	if !ok {
+		return weekdays["en"]
+	}
+
+	return w
 }
