@@ -10,7 +10,10 @@ func main() {
 	if os.Getenv("IS_LOCAL") == "true" {
 		token := os.Getenv("DISCORD_BOT_TOKEN")
 		err := runtime.RunBot(token)
-		log.Fatalln(err)
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
 		return
 	}
 	err := runtime.RunLambda()
