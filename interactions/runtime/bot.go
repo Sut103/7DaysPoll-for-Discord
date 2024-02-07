@@ -7,8 +7,23 @@ import (
 	"os/signal"
 	"syscall"
 
+	"7DaysPoll-interactions/command"
+
 	"github.com/bwmarrin/discordgo"
 )
+
+func poll(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	body, err := command.Poll(i.Interaction)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	err = s.InteractionRespond(i.Interaction, body)
+	if err != nil {
+		log.Println(err)
+	}
+}
 
 func RunBot(token string) error {
 	s, err := discordgo.New(fmt.Sprintf("%s %s", "Bot", token))
@@ -16,6 +31,7 @@ func RunBot(token string) error {
 		return err
 	}
 
+	s.AddHandler(poll)
 	err = s.Open()
 	if err != nil {
 		return err
