@@ -56,15 +56,15 @@ func GetTimeZone(lang string) (*time.Location, error) {
 }
 
 func GetWeekdays(lang discordgo.Locale) []string {
-	weekdays := map[discordgo.Locale][]string{
+	localeWeekdays := map[discordgo.Locale][]string{
 		discordgo.EnglishUS: {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
 		discordgo.Japanese:  {"日", "月", "火", "水", "木", "金", "土"},
 	}
 
-	w, ok := weekdays[lang]
+	weekdays, ok := localeWeekdays[lang]
 	if !ok {
-		return weekdays["en"]
+		return localeWeekdays[discordgo.EnglishUS]
 	}
 
-	return w
+	return weekdays
 }
