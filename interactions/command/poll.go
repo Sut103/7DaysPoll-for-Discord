@@ -46,7 +46,7 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 	content := ""
 	for i, day := range days {
 		emoji := emojis[i]
-		content += fmt.Sprintf("%s %d/%d/%d (%s)\n", emoji, day.Year(), day.Month(), day.Day(), weekdays[day.Weekday()])
+		content += fmt.Sprintf("%s %s (%s)\n", emoji, day.Format("01/02"), weekdays[day.Weekday()])
 	}
 
 	embed := discordgo.MessageEmbed{
