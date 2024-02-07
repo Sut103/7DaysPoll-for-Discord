@@ -7,15 +7,18 @@ import (
 )
 
 func main() {
-	if os.Getenv("IS_LOCAL") == "true" {
-		token := os.Getenv("DISCORD_BOT_TOKEN")
-		err := runtime.RunBot(token)
+	if _, ok := os.LookupEnv("AWS_LAMBDA_RUNTIME_API"); ok {
+		err := runtime.RunLambda()
 		if err != nil {
 			log.Fatalln(err)
 			return
 		}
 		return
 	}
-	err := runtime.RunLambda()
-	log.Fatalln(err)
+
+	token := os.Getenv("DISCORD_BOT_TOKEN")
+	err := runtime.RunBot(token)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
