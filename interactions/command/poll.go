@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -33,11 +32,11 @@ func get7Emojis() []string {
 	}
 }
 
-func Poll(interaction *discordgo.Interaction) (events.APIGatewayProxyResponse, error) {
+func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, error) {
 	timezone, err := util.GetTimeZone(string(interaction.Locale))
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+		return nil, err
 	}
 
 	days := get7Days(time.Now().Local().In(timezone))
@@ -55,12 +54,5 @@ func Poll(interaction *discordgo.Interaction) (events.APIGatewayProxyResponse, e
 			Content: content,
 		},
 	}
-
-	json, err := discordgo.Marshal(body)
-	if err != nil {
-		log.Println(http.StatusInternalServerError, "json marshal error:", err)
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
-	}
-
-	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
+	return &body, nil
 }
