@@ -3,6 +3,7 @@ package main
 import (
 	"7DaysPoll-interactions/command"
 	"7DaysPoll-interactions/ping"
+	"7DaysPoll-interactions/runtime"
 	"7DaysPoll-interactions/util"
 	"context"
 	"crypto/ed25519"
@@ -48,5 +49,11 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 }
 
 func main() {
+	if os.Getenv("IS_LOCAL") == "true" {
+		token := os.Getenv("DISCORD_BOT_TOKEN")
+		err := runtime.RunBot(token)
+		log.Fatalln(err)
+		return
+	}
 	lambda.Start(handler)
 }
