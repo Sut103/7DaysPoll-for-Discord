@@ -18,6 +18,15 @@ import (
 
 var publicKey ed25519.PublicKey
 
+func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode int) (events.APIGatewayProxyResponse, error) {
+	json, err := discordgo.Marshal(&body)
+	if err != nil {
+		log.Println(http.StatusInternalServerError, "json marshal error:", err)
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+	}
+	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
+}
+
 func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	if !util.Verify(&event, publicKey) {
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
@@ -31,7 +40,11 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 		return ping.Pong()
 
 	case discordgo.InteractionApplicationCommand:
-		return command.Poll(&interaction)
+		body, err := command.Poll(&interaction)
+		if err != nil {
+			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+		}
+		return toAPIGatewayProxyResponse(body, http.StatusOK)
 
 	default:
 		log.Printf("%+v", interaction)
