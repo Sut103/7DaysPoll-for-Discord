@@ -8,7 +8,8 @@ import (
 
 func main() {
 	if _, ok := os.LookupEnv("AWS_LAMBDA_RUNTIME_API"); ok {
-		err := runtime.RunLambda()
+		key := os.Getenv("DISCORD_PUBLIC_KEY")
+		err := runtime.RunLambda(key)
 		if err != nil {
 			log.Fatalln(err)
 			return

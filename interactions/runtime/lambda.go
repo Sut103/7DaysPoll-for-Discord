@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -52,12 +51,12 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	}
 }
 
-func RunLambda() error {
-	key, err := hex.DecodeString(os.Getenv("DISCORD_PUBLIC_KEY"))
+func RunLambda(key string) error {
+	decodedKey, err := hex.DecodeString(key)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	publicKey = key
+	publicKey = decodedKey
 
 	lambda.Start(handler)
 	return nil
