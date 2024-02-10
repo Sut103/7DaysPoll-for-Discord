@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,9 +18,10 @@ import (
 
 type Lambda struct {
 	publicKey ed25519.PublicKey
+	endpoint  string
 }
 
-func NewLambda(key string) (*Lambda, error) {
+func NewLambda(key string, endpoint string) (*Lambda, error) {
 	publicKey, err := hex.DecodeString(key)
 	if err != nil {
 		return nil, err
@@ -27,16 +29,20 @@ func NewLambda(key string) (*Lambda, error) {
 
 	return &Lambda{
 		publicKey,
+		endpoint,
 	}, nil
 }
 
 type lambdaSession struct {
-	res *events.APIGatewayProxyResponse
+	l *Lambda
 }
 
 func (s *lambdaSession) InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error {
 	res, err := toAPIGatewayProxyResponse(resp, http.StatusOK)
-	s.res = &res
+	if err != nil {
+		return err
+	}
+	err = s.l.request(res)
 	return err
 }
 
@@ -47,6 +53,24 @@ func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode i
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
+}
+
+func (l Lambda) request(body events.APIGatewayProxyResponse) error {
+	r := strings.NewReader(body.Body)
+
+	req, err := http.NewRequest("POST", l.endpoint, r)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Lambda-Runtime-Function-Response-Mode", "streaming")
+	req.Header.Set("Transfer-Encoding", "chunked")
+
+	client := &http.Client{}
+	_, err = client.Do(req)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (l Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -67,7 +91,7 @@ func (l Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
-		return *s.res, nil
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusOK}, nil
 
 	default:
 		log.Printf("%+v", interaction)
