@@ -9,7 +9,12 @@ import (
 func main() {
 	if _, ok := os.LookupEnv("AWS_LAMBDA_RUNTIME_API"); ok {
 		key := os.Getenv("DISCORD_PUBLIC_KEY")
-		err := runtime.RunLambda(key)
+		lambda, err := runtime.NewLambda(key)
+		if err != nil {
+			log.Fatalln(err)
+			return
+		}
+		err = lambda.Run()
 		if err != nil {
 			log.Fatalln(err)
 			return

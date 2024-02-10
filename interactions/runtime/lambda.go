@@ -15,7 +15,20 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var publicKey ed25519.PublicKey
+type Lambda struct {
+	publicKey ed25519.PublicKey
+}
+
+func NewLambda(key string) (*Lambda, error) {
+	publicKey, err := hex.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Lambda{
+		publicKey,
+	}, nil
+}
 
 func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode int) (events.APIGatewayProxyResponse, error) {
 	json, err := discordgo.Marshal(&body)
@@ -26,8 +39,8 @@ func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode i
 	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
 }
 
-func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	if !util.Verify(&event, publicKey) {
+func (l Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	if !util.Verify(&event, l.publicKey) {
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
 	}
 
@@ -51,13 +64,7 @@ func handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.A
 	}
 }
 
-func RunLambda(key string) error {
-	decodedKey, err := hex.DecodeString(key)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	publicKey = decodedKey
-
-	lambda.Start(handler)
+func (l Lambda) Run() error {
+	lambda.Start(l.handler)
 	return nil
 }
