@@ -29,7 +29,7 @@ func poll(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-func (b Bot) Run() error {
+func (b *Bot) Run() error {
 	s, err := discordgo.New(fmt.Sprintf("%s %s", "Bot", b.token))
 	if err != nil {
 		return err
