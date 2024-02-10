@@ -18,7 +18,8 @@ func main() {
 	}
 
 	token := os.Getenv("DISCORD_BOT_TOKEN")
-	err := runtime.RunBot(token)
+	bot := runtime.NewBot(token)
+	err := bot.Run()
 	if err != nil {
 		log.Fatalln(err)
 	}

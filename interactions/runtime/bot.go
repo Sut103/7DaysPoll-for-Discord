@@ -12,6 +12,16 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type Bot struct {
+	token string
+}
+
+func NewBot(token string) *Bot {
+	return &Bot{
+		token,
+	}
+}
+
 func poll(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	body, err := command.Poll(i.Interaction)
 	if err != nil {
@@ -25,8 +35,8 @@ func poll(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
-func RunBot(token string) error {
-	s, err := discordgo.New(fmt.Sprintf("%s %s", "Bot", token))
+func (b Bot) Run() error {
+	s, err := discordgo.New(fmt.Sprintf("%s %s", "Bot", b.token))
 	if err != nil {
 		return err
 	}
