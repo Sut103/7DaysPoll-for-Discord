@@ -39,7 +39,7 @@ func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode i
 	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
 }
 
-func (l Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (l *Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	if !util.Verify(&event, l.publicKey) {
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusUnauthorized}, nil
 	}
@@ -64,7 +64,7 @@ func (l Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest
 	}
 }
 
-func (l Lambda) Run() error {
+func (l *Lambda) Run() error {
 	lambda.Start(l.handler)
 	return nil
 }
