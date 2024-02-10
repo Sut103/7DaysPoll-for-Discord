@@ -55,7 +55,7 @@ func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode i
 	return events.APIGatewayProxyResponse{Body: string(json), StatusCode: http.StatusOK}, nil
 }
 
-func (l Lambda) request(body events.APIGatewayProxyResponse) error {
+func (l *Lambda) request(body events.APIGatewayProxyResponse) error {
 	r := strings.NewReader(body.Body)
 
 	req, err := http.NewRequest("POST", l.endpoint, r)
@@ -86,7 +86,9 @@ func (l *Lambda) handler(ctx context.Context, event events.APIGatewayProxyReques
 		return ping.Pong()
 
 	case discordgo.InteractionApplicationCommand:
-		s := lambdaSession{}
+		s := lambdaSession{
+			l,
+		}
 		err := command.Poll(&s, &interaction)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
