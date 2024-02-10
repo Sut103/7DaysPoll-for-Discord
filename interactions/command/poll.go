@@ -32,11 +32,11 @@ func get7Emojis() []string {
 	}
 }
 
-func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, error) {
+func Poll(session Session, interaction *discordgo.Interaction) error {
 	timezone, err := util.GetTimeZone(string(interaction.Locale))
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
-		return nil, err
+		return err
 	}
 
 	days := get7Days(time.Now().Local().In(timezone))
@@ -61,5 +61,11 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 			Embeds: []*discordgo.MessageEmbed{&embed},
 		},
 	}
-	return &body, nil
+
+	err = session.InteractionRespond(interaction, &body)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
 }

@@ -30,6 +30,16 @@ func NewLambda(key string) (*Lambda, error) {
 	}, nil
 }
 
+type lambdaSession struct {
+	res *events.APIGatewayProxyResponse
+}
+
+func (s *lambdaSession) InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error {
+	res, err := toAPIGatewayProxyResponse(resp, http.StatusOK)
+	s.res = &res
+	return err
+}
+
 func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode int) (events.APIGatewayProxyResponse, error) {
 	json, err := discordgo.Marshal(&body)
 	if err != nil {
@@ -52,11 +62,12 @@ func (l Lambda) handler(ctx context.Context, event events.APIGatewayProxyRequest
 		return ping.Pong()
 
 	case discordgo.InteractionApplicationCommand:
-		body, err := command.Poll(&interaction)
+		s := lambdaSession{}
+		err := command.Poll(&s, &interaction)
 		if err != nil {
 			return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 		}
-		return toAPIGatewayProxyResponse(body, http.StatusOK)
+		return *s.res, nil
 
 	default:
 		log.Printf("%+v", interaction)
