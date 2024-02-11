@@ -46,6 +46,14 @@ func (s *lambdaSession) InteractionRespond(interaction *discordgo.Interaction, r
 	return err
 }
 
+func (s *lambdaSession) InteractionResponse(interaction *discordgo.Interaction, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	return &discordgo.Message{}, nil
+}
+
+func (s *lambdaSession) MessageReactionAdd(channelID, messageID, emojiID string, options ...discordgo.RequestOption) error {
+	return nil
+}
+
 func toAPIGatewayProxyResponse(body *discordgo.InteractionResponse, statusCode int) (events.APIGatewayProxyResponse, error) {
 	json, err := discordgo.Marshal(&body)
 	if err != nil {

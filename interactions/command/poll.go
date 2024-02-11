@@ -67,5 +67,16 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		log.Println(err)
 		return err
 	}
+
+	message, err := session.InteractionResponse(interaction)
+	if err != nil {
+		return err
+	}
+	for _, reaction := range get7Emojis() {
+		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, reaction)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
