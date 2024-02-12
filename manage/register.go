@@ -20,8 +20,17 @@ func register() error {
 
 	// slash command
 	command := discordgo.ApplicationCommand{
+		Type:        discordgo.ChatApplicationCommand,
 		Name:        "poll",
-		Description: "Starting from today.",
+		Description: "Starting poll from today or specified date.",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "start-date",
+				Description: "If you have a desired date to start the poll. for example, 20240212",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				MaxLength:   8,
+			},
+		},
 	}
 
 	// register
