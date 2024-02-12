@@ -19,6 +19,7 @@ func register() error {
 	defer s.Close()
 
 	// slash command
+	minLength := 8
 	command := discordgo.ApplicationCommand{
 		Type:        discordgo.ChatApplicationCommand,
 		Name:        "poll",
@@ -27,8 +28,9 @@ func register() error {
 			{
 				Name:        "start-date",
 				Description: "If you have a desired date to start the poll. for example, 20240212",
-				Type:        discordgo.ApplicationCommandOptionInteger,
+				Type:        discordgo.ApplicationCommandOptionString,
 				MaxLength:   8,
+				MinLength:   &minLength,
 			},
 		},
 	}
