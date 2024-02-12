@@ -33,13 +33,29 @@ func get7Emojis() []string {
 }
 
 func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, error) {
+	// get timezone
 	timezone, err := util.GetTimeZone(string(interaction.Locale))
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
 		return nil, err
 	}
 
-	days := get7Days(time.Now().Local().In(timezone))
+	// get options
+	options := interaction.ApplicationCommandData().Options
+	optMap := map[string]*discordgo.ApplicationCommandInteractionDataOption{}
+	for _, opt := range options {
+		optMap[opt.Name] = opt
+	}
+
+	start := time.Now().Local().In(timezone)
+	if date, ok := optMap["start-date"]; ok {
+		d, err := time.Parse("20060102", date.StringValue())
+		if err == nil {
+			start = d.In(timezone)
+		}
+	}
+
+	days := get7Days(start)
 	emojis := get7Emojis()
 
 	content := ""
