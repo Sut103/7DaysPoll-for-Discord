@@ -57,17 +57,24 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 
 	days := get7Days(start)
 	emojis := get7Emojis()
+	weekdays := util.GetWeekdays(interaction.Locale)
 
 	content := ""
 	for i, day := range days {
 		emoji := emojis[i]
-		content += fmt.Sprintf("%s %d/%d/%d\n", emoji, day.Year(), day.Month(), day.Day())
+		content += fmt.Sprintf("%s %s (%s)\n", emoji, day.Format("01/02"), weekdays[day.Weekday()])
+	}
+
+	embed := discordgo.MessageEmbed{
+		Title:       "",
+		Description: content,
+		Color:       0x780676,
 	}
 
 	body := discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: content,
+			Embeds: []*discordgo.MessageEmbed{&embed},
 		},
 	}
 	return &body, nil
