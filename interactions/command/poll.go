@@ -63,3 +63,28 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 	}
 	return &body, nil
 }
+
+func BotPoll(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	body, err := Poll(i.Interaction)
+	if err != nil {
+		return err
+	}
+
+	err = s.InteractionRespond(i.Interaction, body)
+	if err != nil {
+		return err
+	}
+
+	message, err := s.InteractionResponse(i.Interaction)
+	if err != nil {
+		return err
+	}
+
+	for _, reaction := range get7Emojis() {
+		err = s.MessageReactionAdd(i.Interaction.ChannelID, message.ID, reaction)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
