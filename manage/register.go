@@ -27,7 +27,7 @@ func register() error {
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "start-date",
-				Description: "If you have desired options, please specify the initial date. Example: 08/03",
+				Description: "If you have desired options, please specify the initial date. Example: 08/31",
 				Type:        discordgo.ApplicationCommandOptionString,
 				MaxLength:   5,
 				MinLength:   &minLength,
