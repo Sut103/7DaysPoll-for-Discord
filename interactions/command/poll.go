@@ -47,6 +47,7 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 		optMap[opt.Name] = opt
 	}
 
+	// judgement start date
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
 
@@ -62,10 +63,12 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 		}
 	}
 
+	// prepare resources
 	days := get7Days(start)
 	emojis := get7Emojis()
 	weekdays := util.GetWeekdays(interaction.Locale)
 
+	// create response
 	content := ""
 	for i, day := range days {
 		emoji := emojis[i]
