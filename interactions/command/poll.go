@@ -47,11 +47,18 @@ func Poll(interaction *discordgo.Interaction) (*discordgo.InteractionResponse, e
 		optMap[opt.Name] = opt
 	}
 
-	start := time.Now().Local().In(timezone)
+	now := time.Now()
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
+
 	if date, ok := optMap["start-date"]; ok {
-		d, err := time.Parse("20060102", date.StringValue())
+		yearDate := fmt.Sprintf("%d/%s", now.Year(), date.StringValue())
+		yd, err := time.Parse("2006/01/02", yearDate)
+
 		if err == nil {
-			start = d.In(timezone)
+			if start.After(yd) {
+				yd = yd.AddDate(1, 0, 0)
+			}
+			start = yd.In(timezone)
 		}
 	}
 
