@@ -12,16 +12,11 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func poll(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	body, err := command.Poll(i.Interaction)
+func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	err := command.BotPoll(s, i)
 	if err != nil {
 		log.Println(err)
 		return
-	}
-
-	err = s.InteractionRespond(i.Interaction, body)
-	if err != nil {
-		log.Println(err)
 	}
 }
 
@@ -31,7 +26,7 @@ func RunBot(token string) error {
 		return err
 	}
 
-	s.AddHandler(poll)
+	s.AddHandler(botHandler)
 	err = s.Open()
 	if err != nil {
 		return err
