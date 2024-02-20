@@ -7,5 +7,10 @@ Polling on 7 potential dates starting from the specified date.
 ![image](https://github.com/Sut103/7DaysPoll-for-Discord/assets/18696845/156b650b-8b0a-4832-bf5c-744733a87678)
 
 
-## How to use 7DaysPoll on your server
+## How to use 7DaysPoll on your discord server
+### invitation
 Invitation Link: https://discord.com/api/oauth2/authorize?client_id=1200049972129837107&permissions=64&scope=bot
+
+### Commands
+`/poll`
+`/poll MM/DD`
