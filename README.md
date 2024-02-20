@@ -8,7 +8,7 @@ Polling on 7 potential dates starting from the specified date.
 
 
 ## How to use 7DaysPoll on your discord server
-### invitation
+### Invitation
 Invitation Link: https://discord.com/api/oauth2/authorize?client_id=1200049972129837107&permissions=64&scope=bot
 
 ### Commands
