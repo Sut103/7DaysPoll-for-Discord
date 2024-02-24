@@ -23,7 +23,7 @@ func NewBot(token string) *Bot {
 }
 
 func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := command.BotPoll(s, i)
+	err := command.Poll(s, i.Interaction)
 	if err != nil {
 		log.Println(err)
 		return
