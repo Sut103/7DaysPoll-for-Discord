@@ -1,28 +1,16 @@
 ![linkedin_banner_image_1](https://github.com/Sut103/7DaysPoll-for-Discord/assets/18696845/df4b8411-1915-4d1b-81a2-381c2d8e5324)
 # 7DaysPoll-for-Discord
+This is a Discord Bot.
+
 Polling on 7 potential dates starting from the specified date.
 
-## Manage Slash Commands
-### Register
-```
-go run manage/* register
-```
+![image](https://github.com/Sut103/7DaysPoll-for-Discord/assets/18696845/156b650b-8b0a-4832-bf5c-744733a87678)
 
-### Delete
-```
-go run manage/* delete
-```
 
-## Usage on AWS Lambda
-### Run locally
-```
-docker build --platform linux/amd64 -t 7dayspoll:latest .
-docker run -p 9000:8080 \
- --entrypoint /usr/local/bin/aws-lambda-rie \
- 7dayspoll:latest /main
-```
+## How to use 7DaysPoll on your discord server
+### Invitation
+Invitation Link: https://discord.com/api/oauth2/authorize?client_id=1200049972129837107&permissions=64&scope=bot
 
-### Run on AWS
-Please build the container image and push to your ECR.
-Next creating the Lambda function with container image on your AWS account.
-(Require environment variable: DISCORD_PUBLIC_KEY)
+### Commands
+`/poll`
+`/poll MM/DD`
