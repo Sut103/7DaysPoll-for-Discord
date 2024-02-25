@@ -22,10 +22,11 @@ func NewBot(token string) *Bot {
 	}
 }
 
-func poll(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := command.Poll(s, i.Interaction)
+func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	err := command.BotPoll(s, i)
 	if err != nil {
 		log.Println(err)
+		return
 	}
 }
 
@@ -35,7 +36,7 @@ func (b *Bot) Run() error {
 		return err
 	}
 
-	s.AddHandler(poll)
+	s.AddHandler(botHandler)
 	err = s.Open()
 	if err != nil {
 		return err
