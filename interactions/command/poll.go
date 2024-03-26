@@ -47,6 +47,11 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		optMap[opt.Name] = opt
 	}
 
+	title := ""
+	if t, ok := optMap["title"]; ok {
+		title = t.StringValue()
+	}
+
 	// judgement start date
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
@@ -76,7 +81,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 	}
 
 	embed := discordgo.MessageEmbed{
-		Title:       "",
+		Title:       title,
 		Description: content,
 		Color:       0x780676,
 	}

@@ -26,6 +26,11 @@ func register() error {
 		Description: "Starting 7DaysPoll from initial date (Today or Specify date).",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
+				Name:        "title",
+				Description: "Please enter the title of the poll.",
+				Type:        discordgo.ApplicationCommandOptionString,
+			},
+			{
 				Name:        "start-date",
 				Description: "If you have desired options, please specify the initial date. Example: 08/31",
 				Type:        discordgo.ApplicationCommandOptionString,
