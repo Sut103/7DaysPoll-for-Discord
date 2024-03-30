@@ -1,4 +1,4 @@
-module 7DaysPoll-interactions
+module 7DaysPoll
 
 go 1.21.6
 

@@ -1,7 +1,7 @@
 package command
 
 import (
-	"7DaysPoll-interactions/util"
+	"7DaysPoll/util"
 	"fmt"
 	"log"
 	"net/http"

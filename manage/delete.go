@@ -1,17 +1,14 @@
-package main
+package manage
 
 import (
-	"fmt"
 	"log"
+
+	"github.com/bwmarrin/discordgo"
 )
 
-func delete() error {
-	s, err := createNewSession()
-	if err != nil {
-		return err
-	}
-
-	commands, err := s.ApplicationCommands(s.State.User.ID, "")
+func delete(session *discordgo.Session) error {
+	log.Printf("Deleting registed commands ...\n")
+	commands, err := session.ApplicationCommands(session.State.User.ID, "")
 	if err != nil {
 		return err
 	}
@@ -22,11 +19,11 @@ func delete() error {
 	}
 
 	for _, command := range commands {
-		err := s.ApplicationCommandDelete(s.State.User.ID, "", command.ID)
+		err := session.ApplicationCommandDelete(session.State.User.ID, "", command.ID)
 		if err != nil {
 			return err
 		}
 	}
-	fmt.Printf("Successfully. Deleted %d commands\n", len(commands))
+	log.Printf("Deletion completed successfully. Deleted %d commands\n", len(commands))
 	return nil
 }

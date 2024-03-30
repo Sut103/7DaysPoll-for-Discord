@@ -1,23 +1,16 @@
-package main
+package manage
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func Ready(s *discordgo.Session, r *discordgo.Ready) {
-	log.Printf("Current Bot: %s#%s", s.State.User.Username, s.State.User.Discriminator)
-}
+// func Ready(session *discordgo.Session, r *discordgo.Ready) {
+// 	log.Printf("Current Bot: %s#%s", session.State.User.Username, session.State.User.Discriminator)
+// }
 
-func register() error {
-	s, err := createNewSession()
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-
+func Register(session *discordgo.Session) error {
 	// slash command
 	minLength := 5
 	command := discordgo.ApplicationCommand{
@@ -40,12 +33,16 @@ func register() error {
 		},
 	}
 
+	// delete
+	delete(session)
+
 	// register
-	ccmd, err := s.ApplicationCommandCreate(s.State.User.ID, "", &command)
+	log.Printf("Registering commands...\n")
+	_, err := session.ApplicationCommandCreate(session.State.User.ID, "", &command)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Command registed: %+v\n", ccmd)
+	log.Printf("Registering commands successfully completed.\n")
 	return nil
 }

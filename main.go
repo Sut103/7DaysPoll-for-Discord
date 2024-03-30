@@ -1,7 +1,7 @@
 package main
 
 import (
-	"7DaysPoll-interactions/runtime"
+	"7DaysPoll/runtime"
 	"log"
 	"os"
 )
