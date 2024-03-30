@@ -1,0 +1,40 @@
+# ref https://github.com/aws-actions/amazon-ecr-login
+# ref https://zenn.dev/kou_pg_0131/articles/gh-actions-oidc-aws
+name: deploy
+
+on:
+  push:
+    branches:
+      - "main"
+
+env:
+  ROLE_TO_ASSUME: ${{ secrets.ROLE_TO_ASSUME }}
+  ECR_REPOSITORY: ${{secrets.ECR_REPOSITORY}}
+  AWS_REGION: ${{secrets.AWS_REGION}}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v4
+      - 
+        name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{env.ROLE_TO_ASSUME}}
+          aws-region: ${{env.AWS_REGION}}
+      - 
+        name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - 
+        name: Build, tag, and push docker image to Amazon ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{env.ECR_REPOSITORY}}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/arm64 -t $REGISTRY/$REPOSITORY:$IMAGE_TAG interactions
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
