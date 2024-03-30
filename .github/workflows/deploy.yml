@@ -7,6 +7,10 @@ on:
     branches:
       - "main"
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   ROLE_TO_ASSUME: ${{ secrets.ROLE_TO_ASSUME }}
   ECR_REPOSITORY: ${{secrets.ECR_REPOSITORY}}
