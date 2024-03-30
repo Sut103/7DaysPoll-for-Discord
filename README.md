@@ -14,3 +14,28 @@ Invitation Link: https://discord.com/api/oauth2/authorize?client_id=120004997212
 ### Commands
 `/poll`
 `/poll MM/DD`
+
+# 7DaysPoll - Interactions
+Functions for interacrions.
+
+## Running Locally
+### Environment variable requirements
+* DISCORD_BOT_TOKEN
+
+### Execute
+```
+go run .
+```
+
+# 7DaysPoll - Manage 
+Managing slash commands
+
+## Register
+```
+go run manage/* register
+```
+
+### Delete
+```
+go run manage/* delete
+```
