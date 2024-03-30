@@ -1,0 +1,16 @@
+name: docker-build
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          docker build interactions
+          docker image ls
