@@ -15,27 +15,17 @@ Invitation Link: https://discord.com/api/oauth2/authorize?client_id=120004997212
 `/poll`
 `/poll MM/DD`
 
-# 7DaysPoll - Interactions
-Functions for interacrions.
-
-## Running Locally
+## Running bot on local or server
 ### Environment variable requirements
 * DISCORD_BOT_TOKEN
 
+### Clone
+```
+git clone https://github.com/Sut103/7DaysPoll-for-Discord.git
+```
+
 ### Execute
 ```
+cd 7DaysPoll-for-Discord
 go run .
-```
-
-# 7DaysPoll - Manage 
-Managing slash commands
-
-## Register
-```
-go run manage/* register
-```
-
-### Delete
-```
-go run manage/* delete
 ```
