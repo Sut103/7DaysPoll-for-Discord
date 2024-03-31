@@ -40,5 +40,5 @@ jobs:
           REPOSITORY: ${{env.ECR_REPOSITORY}}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build --platform linux/arm64 -t $REGISTRY/$REPOSITORY:$IMAGE_TAG interactions
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG interactions
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
