@@ -43,6 +43,6 @@ func Register(session *discordgo.Session) error {
 		return err
 	}
 
-	log.Printf("Registering commands successfully completed.\n")
+	log.Printf("Command registration completed successfully.\n")
 	return nil
 }
