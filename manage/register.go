@@ -16,7 +16,7 @@ func Register(session *discordgo.Session) error {
 	command := discordgo.ApplicationCommand{
 		Type:        discordgo.ChatApplicationCommand,
 		Name:        "poll",
-		Description: "Starting 7DaysPoll from initial date (Today or Specify date).",
+		Description: "Starting 7DaysPoll from initial date (Today or Specific date).",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "title",
