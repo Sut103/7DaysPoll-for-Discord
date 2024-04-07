@@ -146,12 +146,10 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 
 	uniqueVoter := map[string]struct{}{}
 
-	log.Println("aggregate start")
 	wg := sync.WaitGroup{}
 	for _, r := range message.Reactions {
 		select {
 		case <-ctx.Done():
-			log.Println("aggregate canceled")
 			return nil
 		default:
 			wg.Add(1)
@@ -166,7 +164,6 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 		}
 	}
 	wg.Wait()
-	log.Println("aggregate end")
 
 	embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
 		Title:       "",
