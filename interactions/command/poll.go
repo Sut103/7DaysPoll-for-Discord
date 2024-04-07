@@ -138,7 +138,7 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 	go func() {
 		embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
 			Title:       "",
-			Description: "☑️ (Wait 5s)", // It takes about 5 seconds for MessageReactions()
+			Description: "☑️ ⌛", // It takes about 5 seconds for MessageReactions()
 			Color:       0x780676,
 		})
 		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
