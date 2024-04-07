@@ -86,10 +86,16 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		Color:       0x780676,
 	}
 
+	uniqueVoterCounter := discordgo.MessageEmbed{
+		Title:       "",
+		Description: "☑️ 0",
+		Color:       0x780676,
+	}
+
 	body := discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{&embed},
+			Embeds: []*discordgo.MessageEmbed{&embed, &uniqueVoterCounter},
 		},
 	}
 
@@ -110,5 +116,29 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func AggregatePoll(session Session, reaction *discordgo.MessageReaction) error {
+	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+	if err != nil {
+		return err
+	}
+
+	uniqueVoter := map[string]struct{}{}
+	for _, r := range message.Reactions {
+		users, _ := session.MessageReactions(reaction.ChannelID, message.ID, r.Emoji.Name, 100, "", "")
+		for _, user := range users {
+			uniqueVoter[user.ID] = struct{}{}
+		}
+	}
+
+	embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
+		Title:       "",
+		Description: fmt.Sprintf("☑️ %d", len(uniqueVoter)-1),
+		Color:       0x780676,
+	})
+	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+
 	return nil
 }
