@@ -2,7 +2,6 @@ package command
 
 import (
 	"7DaysPoll-interactions/util"
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -121,7 +120,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 	return nil
 }
 
-func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.MessageReaction) error {
+func AggregatePoll(session Session, reaction *discordgo.MessageReaction) error {
 	me, err := session.User("@me")
 	if err != nil {
 		return err
@@ -148,20 +147,15 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 
 	wg := sync.WaitGroup{}
 	for _, r := range message.Reactions {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			wg.Add(1)
-			go func(emojiName string) {
-				// slow
-				users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
-				for _, user := range users {
-					uniqueVoter[user.ID] = struct{}{}
-				}
-				wg.Done()
-			}(r.Emoji.Name)
-		}
+		wg.Add(1)
+		go func(emojiName string) {
+			// slow
+			users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
+			for _, user := range users {
+				uniqueVoter[user.ID] = struct{}{}
+			}
+			wg.Done()
+		}(r.Emoji.Name)
 	}
 	wg.Wait()
 

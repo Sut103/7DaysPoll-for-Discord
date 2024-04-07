@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"7DaysPoll-interactions/command"
-	"7DaysPoll-interactions/contextsync"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -32,16 +31,14 @@ func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 func messageReactionAddEventHandler(s *discordgo.Session, event *discordgo.MessageReactionAdd) {
-	ctx := contextsync.NewAggregationContext()
-	err := command.AggregatePoll(ctx, s, event.MessageReaction)
+	err := command.AggregatePoll(s, event.MessageReaction)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 }
 func messageReactionRemoveEventHandler(s *discordgo.Session, event *discordgo.MessageReactionRemove) {
-	ctx := contextsync.NewAggregationContext()
-	err := command.AggregatePoll(ctx, s, event.MessageReaction)
+	err := command.AggregatePoll(s, event.MessageReaction)
 	if err != nil {
 		log.Println(err)
 		return
