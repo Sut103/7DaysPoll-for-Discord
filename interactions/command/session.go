@@ -11,4 +11,5 @@ type Session interface {
 	InteractionResponse(interaction *discordgo.Interaction, options ...discordgo.RequestOption) (*discordgo.Message, error)
 	MessageReactions(channelID, messageID, emojiID string, limit int, beforeID, afterID string, options ...discordgo.RequestOption) ([]*discordgo.User, error)
 	MessageReactionAdd(channelID, messageID, emojiID string, options ...discordgo.RequestOption) error
+	User(userID string, options ...discordgo.RequestOption) (st *discordgo.User, err error)
 }

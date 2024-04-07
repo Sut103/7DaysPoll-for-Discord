@@ -121,6 +121,14 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 }
 
 func AggregatePoll(session Session, reaction *discordgo.MessageReaction) error {
+	me, err := session.User("@me")
+	if err != nil {
+		return err
+	}
+	if reaction.UserID == me.ID {
+		return nil
+	}
+
 	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
 	if err != nil {
 		return err
