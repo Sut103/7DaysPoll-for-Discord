@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -125,14 +126,32 @@ func AggregatePoll(session Session, reaction *discordgo.MessageReaction) error {
 		return err
 	}
 
+	go func() {
+		embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
+			Title:       "",
+			Description: "☑️ (Wait 5s)", // It takes about 5 seconds for MessageReactions()
+			Color:       0x780676,
+		})
+		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+	}()
+
 	uniqueVoter := map[string]struct{}{}
+	log.Println("aggregate start")
+	wg := sync.WaitGroup{}
 	for _, r := range message.Reactions {
-		users, _ := session.MessageReactions(reaction.ChannelID, message.ID, r.Emoji.Name, 100, "", "")
-		for _, user := range users {
-			uniqueVoter[user.ID] = struct{}{}
-		}
+		wg.Add(1)
+		go func(emojiName string) {
+			// slow
+			users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
+			for _, user := range users {
+				uniqueVoter[user.ID] = struct{}{}
+			}
+			wg.Done()
+		}(r.Emoji.Name)
 	}
 
+	wg.Wait()
+	log.Println("aggregate end")
 	embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
 		Title:       "",
 		Description: fmt.Sprintf("☑️ %d", len(uniqueVoter)-1),
