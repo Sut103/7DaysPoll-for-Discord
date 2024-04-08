@@ -2,10 +2,10 @@ package command
 
 import (
 	"7DaysPoll-interactions/util"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -120,7 +120,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 	return nil
 }
 
-func AggregatePoll(session Session, reaction *discordgo.MessageReaction) error {
+func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.MessageReaction) error {
 	me, err := session.User("@me")
 	if err != nil {
 		return err
@@ -145,19 +145,21 @@ func AggregatePoll(session Session, reaction *discordgo.MessageReaction) error {
 
 	uniqueVoter := map[string]struct{}{}
 
-	wg := sync.WaitGroup{}
+	time.Sleep(1 * time.Second)
 	for _, r := range message.Reactions {
-		wg.Add(1)
-		go func(emojiName string) {
-			// slow
-			users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
-			for _, user := range users {
-				uniqueVoter[user.ID] = struct{}{}
-			}
-			wg.Done()
-		}(r.Emoji.Name)
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			func(emojiName string) {
+				// slow
+				users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
+				for _, user := range users {
+					uniqueVoter[user.ID] = struct{}{}
+				}
+			}(r.Emoji.Name)
+		}
 	}
-	wg.Wait()
 
 	embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
 		Title:       "",
