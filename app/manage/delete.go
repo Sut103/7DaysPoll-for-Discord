@@ -7,7 +7,7 @@ import (
 )
 
 func delete(session *discordgo.Session) error {
-	log.Printf("Deleting registed commands ...\n")
+	log.Printf("Deleting registered commands...\n")
 	commands, err := session.ApplicationCommands(session.State.User.ID, "")
 	if err != nil {
 		return err
