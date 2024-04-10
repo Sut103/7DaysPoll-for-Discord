@@ -21,7 +21,7 @@ func get7Days(day time.Time) [7]time.Time {
 	return days
 }
 
-func get7Emojis() []string {
+func getEmojis() []string {
 	return []string{
 		"1⃣",
 		"2⃣",
@@ -30,6 +30,7 @@ func get7Emojis() []string {
 		"5⃣",
 		"6⃣",
 		"7⃣",
+		"❌",
 	}
 }
 
@@ -71,7 +72,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 
 	// prepare resources
 	days := get7Days(start)
-	emojis := get7Emojis()
+	emojis := getEmojis()
 	weekdays := util.GetWeekdays(interaction.Locale)
 
 	// create response
@@ -80,6 +81,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		emoji := emojis[i]
 		content += fmt.Sprintf("%s %s (%s)\n", emoji, day.Format("01/02"), weekdays[day.Weekday()])
 	}
+	content += fmt.Sprintf("%s %s\n", emojis[7], "Absence")
 
 	embed := discordgo.MessageEmbed{
 		Title:       title,
@@ -111,7 +113,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		return err
 	}
 
-	for _, reaction := range get7Emojis() {
+	for _, reaction := range emojis {
 		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, reaction)
 		if err != nil {
 			return err
