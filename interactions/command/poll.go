@@ -131,6 +131,18 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 		return nil
 	}
 
+	emojis := getEmojis()
+	isTargetEmoji := false
+	for _, e := range emojis {
+		if e == reaction.Emoji.Name {
+			isTargetEmoji = true
+			break
+		}
+	}
+	if !isTargetEmoji {
+		return nil
+	}
+
 	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
 	if err != nil {
 		return err
@@ -148,7 +160,7 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 	uniqueVoter := map[string]struct{}{}
 
 	time.Sleep(1 * time.Second)
-	for _, r := range message.Reactions {
+	for _, e := range emojis {
 		select {
 		case <-ctx.Done():
 			return nil
@@ -159,7 +171,7 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 				for _, user := range users {
 					uniqueVoter[user.ID] = struct{}{}
 				}
-			}(r.Emoji.Name)
+			}(e)
 		}
 	}
 
