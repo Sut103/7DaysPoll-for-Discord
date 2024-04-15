@@ -7,7 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"7DaysPoll-interactions/command"
+	"7DaysPoll/command"
+	"7DaysPoll/manage"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -42,6 +43,8 @@ func (b *Bot) Run() error {
 		return err
 	}
 	defer s.Close()
+	
+	manage.Register(s)
 
 	log.Println("=====start=====")
 	signalChan := make(chan os.Signal, 1)
