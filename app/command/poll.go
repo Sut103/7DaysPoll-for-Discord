@@ -1,7 +1,7 @@
 package command
 
 import (
-	"7DaysPoll-interactions/util"
+	"7DaysPoll/util"
 	"context"
 	"fmt"
 	"log"
@@ -31,6 +31,29 @@ func getEmojis() []string {
 		"6⃣",
 		"7⃣",
 		"❌",
+	}
+}
+
+func GetPollCommand() *discordgo.ApplicationCommand {
+	minLength := 5
+	return &discordgo.ApplicationCommand{
+		Type:        discordgo.ChatApplicationCommand,
+		Name:        "poll",
+		Description: "Starting 7DaysPoll from initial date (Today or Specific date).",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "title",
+				Description: "Please enter the title of the poll.",
+				Type:        discordgo.ApplicationCommandOptionString,
+			},
+			{
+				Name:        "start-date",
+				Description: "If you have desired options, please specify the initial date. Example: 08/31",
+				Type:        discordgo.ApplicationCommandOptionString,
+				MaxLength:   5,
+				MinLength:   &minLength,
+			},
+		},
 	}
 }
 
