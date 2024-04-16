@@ -42,19 +42,19 @@ type Choice struct {
 func getChoices(locale discordgo.Locale, startDate time.Time) []Choice {
 	days := get7Days(startDate)
 	emojis := getEmojis()
-	weekdays := util.GetWeekdays(locale)
+	i18n := util.GetI18n(locale)
 
 	choices := []Choice{}
 	for i := 0; i < 7; i++ {
 		choices = append(choices, Choice{
 			Emoji: emojis[i],
-			Name:  fmt.Sprintf("%s (%s)", days[i].Format("01/02"), weekdays[days[i].Weekday()]),
+			Name:  fmt.Sprintf("%s (%s)", days[i].Format("01/02"), i18n.Weekdays[days[i].Weekday()]),
 		})
 	}
 
 	absence := Choice{
 		Emoji: emojis[7],
-		Name:  util.GetAbsence(locale),
+		Name:  i18n.Absence,
 	}
 	choices = append(choices, absence)
 
