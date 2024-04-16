@@ -34,6 +34,33 @@ func getEmojis() []string {
 	}
 }
 
+type Choice struct {
+	Emoji string
+	Name  string
+}
+
+func getChoices(locale discordgo.Locale, startDate time.Time) []Choice {
+	days := get7Days(startDate)
+	emojis := getEmojis()
+	weekdays := util.GetWeekdays(locale)
+
+	choices := []Choice{}
+	for i := 0; i < 7; i++ {
+		choices = append(choices, Choice{
+			Emoji: emojis[i],
+			Name:  fmt.Sprintf("%s (%s)", days[i].Format("01/02"), weekdays[days[i].Weekday()]),
+		})
+	}
+
+	absence := Choice{
+		Emoji: emojis[7],
+		Name:  util.GetAbsence(locale),
+	}
+	choices = append(choices, absence)
+
+	return choices
+}
+
 func GetPollCommand() *discordgo.ApplicationCommand {
 	minLength := 5
 	return &discordgo.ApplicationCommand{
@@ -93,18 +120,12 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		}
 	}
 
-	// prepare resources
-	days := get7Days(start)
-	emojis := getEmojis()
-	weekdays := util.GetWeekdays(interaction.Locale)
-
 	// create response
 	content := ""
-	for i, day := range days {
-		emoji := emojis[i]
-		content += fmt.Sprintf("%s %s (%s)\n", emoji, day.Format("01/02"), weekdays[day.Weekday()])
+	choices := getChoices(interaction.Locale, start)
+	for _, choice := range choices {
+		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
 	}
-	content += fmt.Sprintf("%s %s\n", emojis[7], "Absence")
 
 	embed := discordgo.MessageEmbed{
 		Title:       title,
@@ -142,8 +163,8 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		return err
 	}
 
-	for _, reaction := range emojis {
-		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, reaction)
+	for _, choice := range choices {
+		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji)
 		if err != nil {
 			return err
 		}

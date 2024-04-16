@@ -32,3 +32,17 @@ func GetWeekdays(lang discordgo.Locale) []string {
 
 	return weekdays
 }
+
+func GetAbsence(lang discordgo.Locale) string {
+	absence := map[discordgo.Locale]string{
+		discordgo.EnglishUS: "Absence",
+		discordgo.Japanese:  "欠席",
+	}
+
+	name, ok := absence[lang]
+	if !ok {
+		return absence[discordgo.EnglishUS]
+	}
+
+	return name
+}
