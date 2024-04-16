@@ -108,20 +108,26 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 
 	embed := discordgo.MessageEmbed{
 		Title:       title,
-		Description: content,
+		Description: "",
 		Color:       0x780676,
-	}
-
-	uniqueVoterCounter := discordgo.MessageEmbed{
-		Title:       "",
-		Description: "☑️ 0",
-		Color:       0x780676,
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:   "",
+				Value:  content,
+				Inline: true,
+			},
+			{
+				Name:   "",
+				Value:  "☑️ 0",
+				Inline: true,
+			},
+		},
 	}
 
 	body := discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{&embed, &uniqueVoterCounter},
+			Embeds: []*discordgo.MessageEmbed{&embed},
 		},
 	}
 
@@ -171,12 +177,13 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 		return err
 	}
 
+	if !(len(message.Embeds) > 0 && len(message.Embeds[0].Fields) > 1) {
+		return nil
+	}
+
 	go func() {
-		embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
-			Title:       "",
-			Description: "☑️ ⌛", // It takes about 5 seconds for MessageReactions()
-			Color:       0x780676,
-		})
+		embeds := message.Embeds
+		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
 		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
 	}()
 
@@ -198,11 +205,8 @@ func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.Mes
 		}
 	}
 
-	embeds := append([]*discordgo.MessageEmbed{}, message.Embeds[0], &discordgo.MessageEmbed{
-		Title:       "",
-		Description: fmt.Sprintf("☑️ %d", len(uniqueVoter)-1),
-		Color:       0x780676,
-	})
+	embeds := message.Embeds
+	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
 	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
 
 	return nil
