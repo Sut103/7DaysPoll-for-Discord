@@ -19,7 +19,7 @@ func GetTimeZone(lang string) (*time.Location, error) {
 	return time.LoadLocation(tz)
 }
 
-func GetWeekdays(lang discordgo.Locale) []string {
+func getWeekdays(lang discordgo.Locale) []string {
 	localeWeekdays := map[discordgo.Locale][]string{
 		discordgo.EnglishUS: {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"},
 		discordgo.Japanese:  {"日", "月", "火", "水", "木", "金", "土"},
@@ -31,4 +31,30 @@ func GetWeekdays(lang discordgo.Locale) []string {
 	}
 
 	return weekdays
+}
+
+func getAbsence(lang discordgo.Locale) string {
+	absence := map[discordgo.Locale]string{
+		discordgo.EnglishUS: "Absence",
+		discordgo.Japanese:  "欠席",
+	}
+
+	name, ok := absence[lang]
+	if !ok {
+		return absence[discordgo.EnglishUS]
+	}
+
+	return name
+}
+
+type I18n struct {
+	Weekdays []string
+	Absence  string
+}
+
+func GetI18n(lang discordgo.Locale) I18n {
+	return I18n{
+		Weekdays: getWeekdays(lang),
+		Absence:  getAbsence(lang),
+	}
 }

@@ -1,14 +1,14 @@
 package runtime
 
 import (
+	"7DaysPoll/command"
+	"7DaysPoll/manage"
+	"7DaysPoll/store"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"7DaysPoll/command"
-	"7DaysPoll/manage"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -31,6 +31,23 @@ func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	}
 }
 
+func messageReactionAddEventHandler(s *discordgo.Session, event *discordgo.MessageReactionAdd) {
+	ctx := store.NewAggregationContext(event.ChannelID, event.MessageID)
+	err := command.AggregatePoll(ctx, s, event.MessageReaction)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+func messageReactionRemoveEventHandler(s *discordgo.Session, event *discordgo.MessageReactionRemove) {
+	ctx := store.NewAggregationContext(event.ChannelID, event.MessageID)
+	err := command.AggregatePoll(ctx, s, event.MessageReaction)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+
 func (b *Bot) Run() error {
 	s, err := discordgo.New(fmt.Sprintf("%s %s", "Bot", b.token))
 	if err != nil {
@@ -38,12 +55,14 @@ func (b *Bot) Run() error {
 	}
 
 	s.AddHandler(botHandler)
+	s.AddHandler(messageReactionAddEventHandler)
+	s.AddHandler(messageReactionRemoveEventHandler)
 	err = s.Open()
 	if err != nil {
 		return err
 	}
 	defer s.Close()
-	
+
 	manage.Register(s)
 
 	log.Println("=====start=====")

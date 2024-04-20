@@ -2,6 +2,7 @@ package command
 
 import (
 	"7DaysPoll/util"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,7 +21,7 @@ func get7Days(day time.Time) [7]time.Time {
 	return days
 }
 
-func get7Emojis() []string {
+func getEmojis() []string {
 	return []string{
 		"1⃣",
 		"2⃣",
@@ -29,7 +30,35 @@ func get7Emojis() []string {
 		"5⃣",
 		"6⃣",
 		"7⃣",
+		"❌",
 	}
+}
+
+type Choice struct {
+	Emoji string
+	Name  string
+}
+
+func getChoices(locale discordgo.Locale, startDate time.Time) []Choice {
+	days := get7Days(startDate)
+	emojis := getEmojis()
+	i18n := util.GetI18n(locale)
+
+	choices := []Choice{}
+	for i := 0; i < 7; i++ {
+		choices = append(choices, Choice{
+			Emoji: emojis[i],
+			Name:  fmt.Sprintf("%s (%s)", days[i].Format("01/02"), i18n.Weekdays[days[i].Weekday()]),
+		})
+	}
+
+	absence := Choice{
+		Emoji: emojis[7],
+		Name:  i18n.Absence,
+	}
+	choices = append(choices, absence)
+
+	return choices
 }
 
 func GetPollCommand() *discordgo.ApplicationCommand {
@@ -91,22 +120,29 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		}
 	}
 
-	// prepare resources
-	days := get7Days(start)
-	emojis := get7Emojis()
-	weekdays := util.GetWeekdays(interaction.Locale)
-
 	// create response
 	content := ""
-	for i, day := range days {
-		emoji := emojis[i]
-		content += fmt.Sprintf("%s %s (%s)\n", emoji, day.Format("01/02"), weekdays[day.Weekday()])
+	choices := getChoices(interaction.Locale, start)
+	for _, choice := range choices {
+		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
 	}
 
 	embed := discordgo.MessageEmbed{
 		Title:       title,
-		Description: content,
+		Description: "",
 		Color:       0x780676,
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:   "",
+				Value:  content,
+				Inline: true,
+			},
+			{
+				Name:   "",
+				Value:  "☑️ 0",
+				Inline: true,
+			},
+		},
 	}
 
 	body := discordgo.InteractionResponse{
@@ -127,11 +163,72 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		return err
 	}
 
-	for _, reaction := range get7Emojis() {
-		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, reaction)
+	for _, choice := range choices {
+		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.MessageReaction) error {
+	me, err := session.User("@me")
+	if err != nil {
+		return err
+	}
+	if reaction.UserID == me.ID {
+		return nil
+	}
+
+	emojis := getEmojis()
+	isTargetEmoji := false
+	for _, e := range emojis {
+		if e == reaction.Emoji.Name {
+			isTargetEmoji = true
+			break
+		}
+	}
+	if !isTargetEmoji {
+		return nil
+	}
+
+	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+	if err != nil {
+		return err
+	}
+
+	if !(len(message.Embeds) > 0 && len(message.Embeds[0].Fields) > 1) {
+		return nil
+	}
+
+	go func() {
+		embeds := message.Embeds
+		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
+		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+	}()
+
+	uniqueVoter := map[string]struct{}{}
+
+	time.Sleep(1 * time.Second)
+	for _, e := range emojis {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			func(emojiName string) {
+				// slow
+				users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
+				for _, user := range users {
+					uniqueVoter[user.ID] = struct{}{}
+				}
+			}(e)
+		}
+	}
+
+	embeds := message.Embeds
+	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
+	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+
 	return nil
 }
