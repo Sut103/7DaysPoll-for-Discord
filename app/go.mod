@@ -2,10 +2,7 @@ module 7DaysPoll
 
 go 1.21.6
 
-require (
-	github.com/aws/aws-lambda-go v1.46.0
-	github.com/bwmarrin/discordgo v0.27.1
-)
+require github.com/bwmarrin/discordgo v0.27.1
 
 require (
 	github.com/gorilla/websocket v1.4.2 // indirect
