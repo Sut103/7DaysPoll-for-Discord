@@ -11,8 +11,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func get7Days(day time.Time) [7]time.Time {
-	days := [7]time.Time{}
+func getDays(day time.Time, numDays int) []time.Time {
+	days := make([]time.Time, numDays)
 
 	for i := range days {
 		days[i] = day.AddDate(0, 0, i)
@@ -39,13 +39,13 @@ type Choice struct {
 	Name  string
 }
 
-func getChoices(locale discordgo.Locale, startDate time.Time) []Choice {
-	days := get7Days(startDate)
+func getChoices(locale discordgo.Locale, startDate time.Time, numDays int) []Choice {
+	days := getDays(startDate, numDays)
 	emojis := getEmojis()
 	i18n := util.GetI18n(locale)
 
 	choices := []Choice{}
-	for i := 0; i < 7; i++ {
+	for i := 0; i < numDays; i++ {
 		choices = append(choices, Choice{
 			Emoji: emojis[i],
 			Name:  fmt.Sprintf("%s (%s)", days[i].Format("01/02"), i18n.Weekdays[days[i].Weekday()]),
@@ -63,10 +63,12 @@ func getChoices(locale discordgo.Locale, startDate time.Time) []Choice {
 
 func GetPollCommand() *discordgo.ApplicationCommand {
 	minLength := 5
+	minDays := 2
+	maxDays := 7
 	return &discordgo.ApplicationCommand{
 		Type:        discordgo.ChatApplicationCommand,
 		Name:        "poll",
-		Description: "Starting 7DaysPoll from initial date (Today or Specific date).",
+		Description: "Starting Poll from initial date with specified number of days (2-7).",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "title",
@@ -79,6 +81,13 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 				Type:        discordgo.ApplicationCommandOptionString,
 				MaxLength:   5,
 				MinLength:   &minLength,
+			},
+			{
+				Name:        "days",
+				Description: "Number of days for the poll (2-7). Default is 7.",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				MinValue:    floatPtr(float64(minDays)),
+				MaxValue:    float64(maxDays),
 			},
 		},
 	}
@@ -104,6 +113,18 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 		title = t.StringValue()
 	}
 
+	// Get number of days (default: 7)
+	numDays := 7
+	if d, ok := optMap["days"]; ok {
+		numDays = int(d.IntValue())
+		// Ensure numDays is within the valid range (2-7)
+		if numDays < 2 {
+			numDays = 2
+		} else if numDays > 7 {
+			numDays = 7
+		}
+	}
+
 	// judgement start date
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
@@ -122,7 +143,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 
 	// create response
 	content := ""
-	choices := getChoices(interaction.Locale, start)
+	choices := getChoices(interaction.Locale, start, numDays)
 	for _, choice := range choices {
 		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
 	}
