@@ -86,7 +86,7 @@ func GetPollCommand() *discordgo.ApplicationCommand {
                                 Name:        "days",
                                 Description: "Number of days for the poll (2-7). Default is 7.",
                                 Type:        discordgo.ApplicationCommandOptionInteger,
-                                MinValue:    &minDays,
+                                MinValue:    float64(minDays),
                                 MaxValue:    float64(maxDays),
                         },
                 },
