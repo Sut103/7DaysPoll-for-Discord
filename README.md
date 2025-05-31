@@ -13,7 +13,6 @@ The bot can create polls with 2-7 potential dates starting from a specified date
 - Customize the starting date
 - Add a title to your poll
 - Automatic counting of unique voters
-- Support for different locales and timezones
 - Simple and intuitive reaction-based voting system
 
 ## How to use 7DaysPoll on your Discord server
@@ -52,10 +51,7 @@ You can combine these parameters as needed:
    DISCORD_BOT_TOKEN=your_discord_bot_token_here
    ```
 
-3. Open the project in VS Code and reopen it in a container when prompted, or run:
-   ```
-   code --remote-container .
-   ```
+3. Open the project in VS Code. Once opened, open the Command Palette and select "Remote-Containers: Reopen in Container" to reopen the project inside the container.
 
 4. Once inside the container, you can run the bot:
    ```
@@ -89,7 +85,7 @@ This will create a Docker image optimized for arm64 architecture.
 
 ### Manual Deployment
 
-1. Ensure you have Go 1.21 or later installed
+1. Ensure you have Go 1.23 or later installed
 2. Clone the repository:
    ```bash
    git clone https://github.com/Sut103/7DaysPoll-for-Discord.git
@@ -105,14 +101,3 @@ This will create a Docker image optimized for arm64 architecture.
    ```bash
    go run .
    ```
-
-## Creating Your Own Discord Bot
-
-If you want to use your own Discord bot instead of the provided invitation link:
-
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a new application
-3. Go to the "Bot" tab and add a bot
-4. Copy the token and use it as your `DISCORD_BOT_TOKEN`
-5. Go to the "OAuth2" tab, select "bot" scope and "Send Messages" permission
-6. Use the generated URL to invite your bot to your server
