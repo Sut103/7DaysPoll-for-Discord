@@ -1,9 +1,8 @@
 {
 	"name": "Go",
-	"image": "mcr.microsoft.com/devcontainers/go:1-1.21-bullseye",
+	"image": "mcr.microsoft.com/devcontainers/go:1-1.24-bullseye",
 	"features": {
-		"ghcr.io/devcontainers/features/aws-cli:1": {},
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+		"ghcr.io/devcontainers/features/aws-cli:1": {}
 	},
 	"runArgs": [
 		"--env-file",
