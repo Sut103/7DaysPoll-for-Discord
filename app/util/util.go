@@ -58,3 +58,7 @@ func GetI18n(lang discordgo.Locale) I18n {
 		Absence:  getAbsence(lang),
 	}
 }
+
+func FloatPtr(v float64) *float64 {
+	return &v
+}

@@ -1,5 +1,3 @@
 package command
 
-func floatPtr(v float64) *float64 {
-    return &v
-}
+// This file has been merged into util/util.go. Keeping for legacy import, but should be removed.
