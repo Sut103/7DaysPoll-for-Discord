@@ -93,7 +93,7 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 	}
 }
 
-func Poll(session Session, interaction *discordgo.Interaction) error {
+func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	// get timezone
 	timezone, err := util.GetTimeZone(string(interaction.Locale))
 	if err != nil {
@@ -193,7 +193,7 @@ func Poll(session Session, interaction *discordgo.Interaction) error {
 	return nil
 }
 
-func AggregatePoll(ctx context.Context, session Session, reaction *discordgo.MessageReaction) error {
+func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *discordgo.MessageReaction) error {
 	me, err := session.User("@me")
 	if err != nil {
 		return err
