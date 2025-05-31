@@ -75,8 +75,6 @@ func (b *Bot) Run() error {
 		syscall.SIGTERM,
 	)
 
-	select {
-	case <-signalChan:
-		return nil
-	}
+	<-signalChan
+	return nil
 }
