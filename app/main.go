@@ -7,12 +7,10 @@ import (
 )
 
 func main() {
-	var r runtime.Runtime
-
 	token := os.Getenv("DISCORD_BOT_TOKEN")
-	r = runtime.NewBot(token)
+	bot := runtime.NewBot(token)
 
-	err := r.Run()
+	err := bot.Run()
 	if err != nil {
 		log.Fatalln(err)
 	}
