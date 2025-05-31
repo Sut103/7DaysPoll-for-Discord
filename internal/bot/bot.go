@@ -1,9 +1,9 @@
-package runtime
+package bot
 
 import (
-	"7DaysPoll/command"
-	"7DaysPoll/manage"
-	"7DaysPoll/store"
+	"7DaysPoll/internal/manage"
+	"7DaysPoll/internal/poll"
+	"7DaysPoll/internal/store"
 	"fmt"
 	"log"
 	"os"
@@ -24,7 +24,7 @@ func NewBot(token string) *Bot {
 }
 
 func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := command.Poll(s, i.Interaction)
+	err := poll.Poll(s, i.Interaction)
 	if err != nil {
 		log.Println(err)
 		return
@@ -33,7 +33,7 @@ func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 func messageReactionAddEventHandler(s *discordgo.Session, event *discordgo.MessageReactionAdd) {
 	ctx := store.NewAggregationContext(event.ChannelID, event.MessageID)
-	err := command.AggregatePoll(ctx, s, event.MessageReaction)
+	err := poll.AggregatePoll(ctx, s, event.MessageReaction)
 	if err != nil {
 		log.Println(err)
 		return
@@ -41,7 +41,7 @@ func messageReactionAddEventHandler(s *discordgo.Session, event *discordgo.Messa
 }
 func messageReactionRemoveEventHandler(s *discordgo.Session, event *discordgo.MessageReactionRemove) {
 	ctx := store.NewAggregationContext(event.ChannelID, event.MessageID)
-	err := command.AggregatePoll(ctx, s, event.MessageReaction)
+	err := poll.AggregatePoll(ctx, s, event.MessageReaction)
 	if err != nil {
 		log.Println(err)
 		return

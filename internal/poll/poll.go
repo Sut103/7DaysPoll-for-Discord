@@ -1,23 +1,27 @@
-package command
+package poll
 
 import (
-	"7DaysPoll/util"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"7DaysPoll/internal/util"
+
 	"github.com/bwmarrin/discordgo"
 )
 
+type Choice struct {
+	Emoji string
+	Name  string
+}
+
 func getDays(day time.Time, numDays int) []time.Time {
 	days := make([]time.Time, numDays)
-
 	for i := range days {
 		days[i] = day.AddDate(0, 0, i)
 	}
-
 	return days
 }
 
@@ -34,11 +38,6 @@ func getEmojis() []string {
 	}
 }
 
-type Choice struct {
-	Emoji string
-	Name  string
-}
-
 func getChoices(locale discordgo.Locale, startDate time.Time, numDays int) []Choice {
 	days := getDays(startDate, numDays)
 	emojis := getEmojis()
@@ -51,13 +50,11 @@ func getChoices(locale discordgo.Locale, startDate time.Time, numDays int) []Cho
 			Name:  fmt.Sprintf("%s (%s)", days[i].Format("01/02"), i18n.Weekdays[days[i].Weekday()]),
 		})
 	}
-
 	absence := Choice{
 		Emoji: emojis[7],
 		Name:  i18n.Absence,
 	}
 	choices = append(choices, absence)
-
 	return choices
 }
 
@@ -100,39 +97,32 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		log.Println(http.StatusInternalServerError, "timezone error", err)
 		return err
 	}
-
 	// get options
 	options := interaction.ApplicationCommandData().Options
 	optMap := map[string]*discordgo.ApplicationCommandInteractionDataOption{}
 	for _, opt := range options {
 		optMap[opt.Name] = opt
 	}
-
 	title := ""
 	if t, ok := optMap["title"]; ok {
 		title = t.StringValue()
 	}
-
 	// Get number of days (default: 7)
 	numDays := 7
 	if d, ok := optMap["days"]; ok {
 		numDays = int(d.IntValue())
-		// Ensure numDays is within the valid range (2-7)
 		if numDays < 2 {
 			numDays = 2
 		} else if numDays > 7 {
 			numDays = 7
 		}
 	}
-
 	// judgement start date
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
-
 	if date, ok := optMap["start-date"]; ok {
 		yearDate := fmt.Sprintf("%d/%s", now.Year(), date.StringValue())
 		yd, err := time.Parse("2006/01/02", yearDate)
-
 		if err == nil {
 			if start.After(yd) {
 				yd = yd.AddDate(1, 0, 0)
@@ -140,14 +130,12 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 			start = yd.In(timezone)
 		}
 	}
-
 	// create response
 	content := ""
 	choices := getChoices(interaction.Locale, start, numDays)
 	for _, choice := range choices {
 		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
 	}
-
 	embed := discordgo.MessageEmbed{
 		Title:       title,
 		Description: "",
@@ -165,25 +153,21 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 			},
 		},
 	}
-
 	body := discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{&embed},
 		},
 	}
-
 	err = session.InteractionRespond(interaction, &body)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
-
 	message, err := session.InteractionResponse(interaction)
 	if err != nil {
 		return err
 	}
-
 	for _, choice := range choices {
 		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji)
 		if err != nil {
@@ -201,7 +185,6 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	if reaction.UserID == me.ID {
 		return nil
 	}
-
 	emojis := getEmojis()
 	isTargetEmoji := false
 	for _, e := range emojis {
@@ -213,24 +196,19 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	if !isTargetEmoji {
 		return nil
 	}
-
 	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
 	if err != nil {
 		return err
 	}
-
 	if !(len(message.Embeds) > 0 && len(message.Embeds[0].Fields) > 1) {
 		return nil
 	}
-
 	go func() {
 		embeds := message.Embeds
 		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
 		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
 	}()
-
 	uniqueVoter := map[string]struct{}{}
-
 	time.Sleep(1 * time.Second)
 	for _, e := range emojis {
 		select {
@@ -238,7 +216,6 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 			return nil
 		default:
 			func(emojiName string) {
-				// slow
 				users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
 				for _, user := range users {
 					uniqueVoter[user.ID] = struct{}{}
@@ -246,10 +223,8 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 			}(e)
 		}
 	}
-
 	embeds := message.Embeds
 	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
 	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
-
 	return nil
 }
