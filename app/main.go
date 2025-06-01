@@ -1,19 +1,15 @@
 package main
 
 import (
-	"7DaysPoll/runtime"
+	"7DaysPoll/bot"
 	"log"
 	"os"
 )
 
 func main() {
-	var r runtime.Runtime
-
 	token := os.Getenv("DISCORD_BOT_TOKEN")
-	r = runtime.NewBot(token)
-
-	err := r.Run()
-	if err != nil {
+	b := bot.NewBot(token)
+	if err := b.Run(); err != nil {
 		log.Fatalln(err)
 	}
 }
