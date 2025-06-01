@@ -3,10 +3,22 @@ package manage
 import (
 	"log"
 
+	"7DaysPoll/poll"
+
 	"github.com/bwmarrin/discordgo"
 )
 
-func delete(session *discordgo.Session) error {
+func Register(session *discordgo.Session) error {
+	log.Printf("Registering commands...\n")
+	_, err := session.ApplicationCommandCreate(session.State.User.ID, "", poll.GetPollCommand())
+	if err != nil {
+		return err
+	}
+	log.Printf("Command registration completed successfully.\n")
+	return nil
+}
+
+func Delete(session *discordgo.Session) error {
 	log.Printf("Deleting registered commands...\n")
 	commands, err := session.ApplicationCommands(session.State.User.ID, "")
 	if err != nil {

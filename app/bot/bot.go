@@ -1,9 +1,8 @@
 package bot
 
 import (
-	"7DaysPoll/internal/manage"
-	"7DaysPoll/internal/poll"
-	"7DaysPoll/internal/store"
+	"7DaysPoll/manage"
+	"7DaysPoll/poll"
 	"fmt"
 	"log"
 	"os"
@@ -32,7 +31,7 @@ func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 }
 
 func messageReactionAddEventHandler(s *discordgo.Session, event *discordgo.MessageReactionAdd) {
-	ctx := store.NewAggregationContext(event.ChannelID, event.MessageID)
+	ctx := poll.NewAggregationContext(event.ChannelID, event.MessageID)
 	err := poll.AggregatePoll(ctx, s, event.MessageReaction)
 	if err != nil {
 		log.Println(err)
@@ -40,7 +39,7 @@ func messageReactionAddEventHandler(s *discordgo.Session, event *discordgo.Messa
 	}
 }
 func messageReactionRemoveEventHandler(s *discordgo.Session, event *discordgo.MessageReactionRemove) {
-	ctx := store.NewAggregationContext(event.ChannelID, event.MessageID)
+	ctx := poll.NewAggregationContext(event.ChannelID, event.MessageID)
 	err := poll.AggregatePoll(ctx, s, event.MessageReaction)
 	if err != nil {
 		log.Println(err)

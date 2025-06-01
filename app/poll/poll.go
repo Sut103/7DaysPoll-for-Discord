@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"7DaysPoll/internal/util"
-
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -41,7 +39,7 @@ func getEmojis() []string {
 func getChoices(locale discordgo.Locale, startDate time.Time, numDays int) []Choice {
 	days := getDays(startDate, numDays)
 	emojis := getEmojis()
-	i18n := util.GetI18n(locale)
+	i18n := GetI18n(locale)
 
 	choices := []Choice{}
 	for i := 0; i < numDays; i++ {
@@ -83,7 +81,7 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 				Name:        "days",
 				Description: "Number of days for the poll (2-7). Default is 7.",
 				Type:        discordgo.ApplicationCommandOptionInteger,
-				MinValue:    util.FloatPtr(float64(minDays)),
+				MinValue:    FloatPtr(float64(minDays)),
 				MaxValue:    float64(maxDays),
 			},
 		},
@@ -92,7 +90,7 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 
 func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	// get timezone
-	timezone, err := util.GetTimeZone(string(interaction.Locale))
+	timezone, err := GetTimeZone(string(interaction.Locale))
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
 		return err

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"7DaysPoll/internal/bot"
+	"7DaysPoll/bot"
 	"log"
 	"os"
 )

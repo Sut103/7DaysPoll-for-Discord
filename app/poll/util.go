@@ -1,4 +1,4 @@
-package util
+package poll
 
 import (
 	"time"
