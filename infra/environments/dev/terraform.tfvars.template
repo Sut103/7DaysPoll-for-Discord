@@ -1,0 +1,5 @@
+# Copy this file to terraform.tfvars and fill in the values
+project_id   = "your-gcp-project-id"
+environment  = "dev"
+docker_image = "docker/image"
+secret_value_discord_bot_token = "your-discord-bot-token-here"
