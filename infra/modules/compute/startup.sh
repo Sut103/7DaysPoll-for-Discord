@@ -12,15 +12,6 @@ if [ -z "$DISCORD_BOT_TOKEN" ]; then
   exit 1
 fi
 
-GEMINI_API_KEY=$(curl -s -H "Authorization: Bearer $(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | jq -r .access_token)" \
-  "https://secretmanager.googleapis.com/v1/${SECRET_NAME_GEMINI}/versions/latest:access" | jq -r .payload.data | base64 -d)
-
-if [ -z "$GEMINI_API_KEY" ]; then
-  echo "Failed to retrieve Gemini API key"
-  shutdown now
-  exit 1
-fi
-
 # Stop and remove existing container if it exists
 docker stop sevendayspoll 2>/dev/null || true
 docker rm sevendayspoll 2>/dev/null || true
@@ -40,7 +31,6 @@ echo "Starting Docker container..."
 docker run -d \
   --name sevendayspoll \
   -e DISCORD_BOT_TOKEN="$DISCORD_BOT_TOKEN" \
-  -e GEMINI_API_KEY="$GEMINI_API_KEY" \
   --log-driver=gcplogs \
   ${DOCKER_IMAGE} > /dev/null
 
