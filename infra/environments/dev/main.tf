@@ -15,6 +15,8 @@ module "network" {
   project_id  = var.project_id
   environment = var.environment
   region      = local.region
+
+  depends_on = [module.api]
 }
 
 module "iam" {
@@ -22,6 +24,8 @@ module "iam" {
 
   project_id  = var.project_id
   environment = var.environment
+
+  depends_on = [module.api]
 }
 
 module "secret_manager" {
@@ -30,6 +34,8 @@ module "secret_manager" {
   project_id                     = var.project_id
   environment                    = var.environment
   secret_value_discord_bot_token = var.secret_value_discord_bot_token
+
+  depends_on = [module.api]
 }
 
 module "compute" {
