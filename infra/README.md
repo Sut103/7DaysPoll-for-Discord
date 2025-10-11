@@ -1,6 +1,6 @@
 # sevendayspoll Infrastructure
 
-このディレクトリには、Discord sevendayspollをGCP上にデプロイするためのTerraform構成が含まれている。
+このディレクトリには、Discord 7dayspollをGCP上にデプロイするためのTerraform構成が含まれている。
 
 ## 構成概要
 
@@ -46,16 +46,18 @@ sevendayspoll-{環境名}-{リソース名}
 ### 1. GCP認証の設定
 
 ```bash
-gcloud auth application-default login
-gcloud config set project YOUR_PROJECT_ID
+YOUR_PROJECT_ID=
+gcloud auth login
+gcloud config set project ${YOUR_PROJECT_ID}
 ```
 
 ### 2. Terraformステート用バケットの作成
 
+バケットがまだ存在しない場合のみ実行
 ```bash
-# バケットがまだ存在しない場合のみ実行
-gsutil mb gs://YOUR_PROJECT_ID-sevendayspoll-tfstate
-gsutil versioning set on gs://YOUR_PROJECT_ID-sevendayspoll-tfstate
+LOCATION=us-west1
+gcloud storage buckets create gs://${YOUR_PROJECT_ID}-sevendayspoll-tfstate --location=${LOCATION} --uniform-bucket-level-access
+gcloud storage buckets update gs://${YOUR_PROJECT_ID}-sevendayspoll-tfstate --versioning
 ```
 
 ### 3. 環境設定ファイルの準備
@@ -79,10 +81,10 @@ secret_value_discord_bot_token = "your-discord-bot-token-here"
 
 ### 4. Terraformの初期化と適用
 
+開発環境の場合
 ```bash
-# 開発環境の場合
 cd environments/dev
-terraform init -backend-config="bucket=YOUR_PROJECT_ID-sevendayspoll-tfstate"
+terraform init -backend-config="bucket=${YOUR_PROJECT_ID}-sevendayspoll-tfstate"
 terraform plan
 terraform apply
 ```
