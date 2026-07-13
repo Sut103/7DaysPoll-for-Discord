@@ -172,6 +172,8 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 			return err
 		}
 	}
+	createScheduledEvent(session, interaction, message, start, numDays, title)
+
 	return nil
 }
 
@@ -203,7 +205,7 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	}
 	go func() {
 		embeds := message.Embeds
-		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
+		embeds[0].Fields[1].Value = "☑️ ⌛"
 		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
 	}()
 	uniqueVoter := map[string]struct{}{}
@@ -225,4 +227,43 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
 	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
 	return nil
+}
+
+func createScheduledEvent(session *discordgo.Session, interaction *discordgo.Interaction, message *discordgo.Message, start time.Time, numDays int, title string) {
+	eventTitle := title
+	if eventTitle == "" {
+		eventTitle = "投票"
+	}
+	eventTitle = "(投票期間中)" + eventTitle
+
+	messageURL := fmt.Sprintf("https://discord.com/channels/%s/%s/%s", interaction.GuildID, interaction.ChannelID, message.ID)
+
+	days := getDays(start, numDays)
+	finalDay := days[len(days)-1]
+
+	startTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 0, 0, 0, 0, start.Location())
+	now := time.Now()
+	// Discord API requires scheduled start time to be in the future
+	if startTime.Before(now) {
+		startTime = now.Add(1 * time.Minute)
+	}
+
+	endTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 23, 59, 59, 0, start.Location())
+
+	eventParams := &discordgo.GuildScheduledEventParams{
+		Name:               eventTitle,
+		Description:        fmt.Sprintf("投票メッセージ: %s", messageURL),
+		ScheduledStartTime: &startTime,
+		ScheduledEndTime:   &endTime,
+		PrivacyLevel:       discordgo.GuildScheduledEventPrivacyLevelGuildOnly,
+		EntityType:         discordgo.GuildScheduledEventEntityTypeExternal,
+		EntityMetadata: &discordgo.GuildScheduledEventEntityMetadata{
+			Location: messageURL,
+		},
+	}
+
+	_, err := session.GuildScheduledEventCreate(interaction.GuildID, eventParams)
+	if err != nil {
+		log.Println("Failed to create guild scheduled event:", err)
+	}
 }
