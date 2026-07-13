@@ -6,6 +6,22 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type I18n struct {
+	Weekdays     []string
+	Absence      string
+	DefaultTitle string
+	VotingPeriod string
+}
+
+func GetI18n(lang discordgo.Locale) I18n {
+	return I18n{
+		Weekdays:     getWeekdays(lang),
+		Absence:      getAbsence(lang),
+		DefaultTitle: getTitle(lang),
+		VotingPeriod: getVotingPeriod(lang),
+	}
+}
+
 func GetTimeZone(lang string) (*time.Location, error) {
 	timezone := map[string]string{
 		"Japanese": "Asia/Tokyo",
@@ -41,12 +57,6 @@ func getAbsence(lang discordgo.Locale) string {
 	return name
 }
 
-type I18n struct {
-	Weekdays []string
-	Absence  string
-	Title    string
-}
-
 func getTitle(lang discordgo.Locale) string {
 	title := map[discordgo.Locale]string{
 		discordgo.EnglishUS: "Poll",
@@ -59,12 +69,16 @@ func getTitle(lang discordgo.Locale) string {
 	return name
 }
 
-func GetI18n(lang discordgo.Locale) I18n {
-	return I18n{
-		Weekdays: getWeekdays(lang),
-		Absence:  getAbsence(lang),
-		Title:    getTitle(lang),
+func getVotingPeriod(lang discordgo.Locale) string {
+	votingPeriod := map[discordgo.Locale]string{
+		discordgo.EnglishUS: "(🗳️Voting)",
+		discordgo.Japanese:  "(🗳️投票期間中)",
 	}
+	name, ok := votingPeriod[lang]
+	if !ok {
+		return votingPeriod[discordgo.EnglishUS]
+	}
+	return name
 }
 
 func FloatPtr(v float64) *float64 {

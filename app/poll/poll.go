@@ -36,10 +36,9 @@ func getEmojis() []string {
 	}
 }
 
-func getChoices(locale discordgo.Locale, startDate time.Time, numDays int) []Choice {
+func getChoices(i18n I18n, startDate time.Time, numDays int) []Choice {
 	days := getDays(startDate, numDays)
 	emojis := getEmojis()
-	i18n := GetI18n(locale)
 
 	choices := []Choice{}
 	for i := 0; i < numDays; i++ {
@@ -89,6 +88,7 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 }
 
 func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
+	i18n := GetI18n(interaction.Locale)
 	// get timezone
 	timezone, err := GetTimeZone(string(interaction.Locale))
 	if err != nil {
@@ -106,8 +106,7 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		title = t.StringValue()
 	}
 	if title == "" {
-		i18n := GetI18n(interaction.Locale)
-		title = i18n.Title
+		title = i18n.DefaultTitle
 	}
 	// Get number of days (default: 7)
 	numDays := 7
@@ -134,7 +133,7 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 	}
 	// create response
 	content := ""
-	choices := getChoices(interaction.Locale, start, numDays)
+	choices := getChoices(i18n, start, numDays)
 	for _, choice := range choices {
 		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
 	}
@@ -177,7 +176,7 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		}
 	}
 
-	event, err := createScheduledEvent(session, interaction.GuildID, start, numDays, title)
+	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title)
 	if err != nil {
 		log.Println("Failed to create guild scheduled event:", err)
 		return nil
@@ -243,8 +242,8 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	return nil
 }
 
-func createScheduledEvent(session *discordgo.Session, guildID string, start time.Time, numDays int, title string) (*discordgo.GuildScheduledEvent, error) {
-	eventTitle := "(投票期間中)" + title
+func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string) (*discordgo.GuildScheduledEvent, error) {
+	eventTitle := i18n.VotingPeriod + title
 
 	days := getDays(start, numDays)
 	finalDay := days[len(days)-1]
