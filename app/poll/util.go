@@ -44,12 +44,26 @@ func getAbsence(lang discordgo.Locale) string {
 type I18n struct {
 	Weekdays []string
 	Absence  string
+	Title    string
+}
+
+func getTitle(lang discordgo.Locale) string {
+	title := map[discordgo.Locale]string{
+		discordgo.EnglishUS: "Poll",
+		discordgo.Japanese:  "投票",
+	}
+	name, ok := title[lang]
+	if !ok {
+		return title[discordgo.EnglishUS]
+	}
+	return name
 }
 
 func GetI18n(lang discordgo.Locale) I18n {
 	return I18n{
 		Weekdays: getWeekdays(lang),
 		Absence:  getAbsence(lang),
+		Title:    getTitle(lang),
 	}
 }
 

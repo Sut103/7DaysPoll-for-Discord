@@ -105,6 +105,10 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 	if t, ok := optMap["title"]; ok {
 		title = t.StringValue()
 	}
+	if title == "" {
+		i18n := GetI18n(interaction.Locale)
+		title = i18n.Title
+	}
 	// Get number of days (default: 7)
 	numDays := 7
 	if d, ok := optMap["days"]; ok {
@@ -230,11 +234,7 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 }
 
 func createScheduledEvent(session *discordgo.Session, interaction *discordgo.Interaction, message *discordgo.Message, start time.Time, numDays int, title string) {
-	eventTitle := title
-	if eventTitle == "" {
-		eventTitle = "投票"
-	}
-	eventTitle = "(投票期間中)" + eventTitle
+	eventTitle := "(投票期間中)" + title
 
 	messageURL := fmt.Sprintf("https://discord.com/channels/%s/%s/%s", interaction.GuildID, interaction.ChannelID, message.ID)
 
@@ -270,9 +270,6 @@ func createScheduledEvent(session *discordgo.Session, interaction *discordgo.Int
 
 	if len(message.Embeds) > 0 {
 		eventURL := fmt.Sprintf("https://discord.com/events/%s/%s", interaction.GuildID, event.ID)
-		if message.Embeds[0].Title == "" {
-			message.Embeds[0].Title = "投票"
-		}
 		message.Embeds[0].URL = eventURL
 		_, err = session.ChannelMessageEditEmbeds(interaction.ChannelID, message.ID, message.Embeds)
 		if err != nil {
