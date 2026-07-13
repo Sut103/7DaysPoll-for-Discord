@@ -262,8 +262,21 @@ func createScheduledEvent(session *discordgo.Session, interaction *discordgo.Int
 		},
 	}
 
-	_, err := session.GuildScheduledEventCreate(interaction.GuildID, eventParams)
+	event, err := session.GuildScheduledEventCreate(interaction.GuildID, eventParams)
 	if err != nil {
 		log.Println("Failed to create guild scheduled event:", err)
+		return
+	}
+
+	if len(message.Embeds) > 0 {
+		eventURL := fmt.Sprintf("https://discord.com/events/%s/%s", interaction.GuildID, event.ID)
+		if message.Embeds[0].Title == "" {
+			message.Embeds[0].Title = "投票"
+		}
+		message.Embeds[0].URL = eventURL
+		_, err = session.ChannelMessageEditEmbeds(interaction.ChannelID, message.ID, message.Embeds)
+		if err != nil {
+			log.Println("Failed to edit poll message with event link:", err)
+		}
 	}
 }
