@@ -176,15 +176,17 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		}
 	}
 
-	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title)
+	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
+
+	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL)
 	if err != nil {
 		log.Println("Failed to create guild scheduled event:", err)
 		return nil
 	}
 
-	err = bindPollAndEvent(session, interaction.GuildID, interaction.ChannelID, message, event)
+	err = addEventLinkToPollMessage(session, interaction.GuildID, interaction.ChannelID, message, event)
 	if err != nil {
-		log.Println("Failed to bind poll and event:", err)
+		log.Println("Failed to add event link to poll message:", err)
 	}
 
 	return nil
@@ -242,7 +244,11 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	return nil
 }
 
-func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string) (*discordgo.GuildScheduledEvent, error) {
+func buildMessageURL(guildID, channelID, messageID string) string {
+	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, channelID, messageID)
+}
+
+func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
 	eventTitle := i18n.VotingPeriod + title
 
 	days := getDays(start, numDays)
@@ -258,36 +264,29 @@ func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n,
 
 	eventParams := &discordgo.GuildScheduledEventParams{
 		Name:               eventTitle,
+		Description:        fmt.Sprintf("投票メッセージ: %s", messageURL),
 		ScheduledStartTime: &startTime,
 		ScheduledEndTime:   &endTime,
 		PrivacyLevel:       discordgo.GuildScheduledEventPrivacyLevelGuildOnly,
 		EntityType:         discordgo.GuildScheduledEventEntityTypeExternal,
+		EntityMetadata: &discordgo.GuildScheduledEventEntityMetadata{
+			Location: messageURL,
+		},
 	}
 
 	return session.GuildScheduledEventCreate(guildID, eventParams)
 }
 
-func bindPollAndEvent(session *discordgo.Session, guildID string, channelID string, message *discordgo.Message, event *discordgo.GuildScheduledEvent) error {
-	messageURL := fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, channelID, message.ID)
+func addEventLinkToPollMessage(session *discordgo.Session, guildID string, channelID string, message *discordgo.Message, event *discordgo.GuildScheduledEvent) error {
+	if len(message.Embeds) == 0 {
+		return nil
+	}
+
 	eventURL := fmt.Sprintf("https://discord.com/events/%s/%s", guildID, event.ID)
-
-	eventParams := &discordgo.GuildScheduledEventParams{
-		Description: fmt.Sprintf("投票メッセージ: %s", messageURL),
-		EntityMetadata: &discordgo.GuildScheduledEventEntityMetadata{
-			Location: messageURL,
-		},
-	}
-	_, err := session.GuildScheduledEventEdit(guildID, event.ID, eventParams)
+	message.Embeds[0].URL = eventURL
+	_, err := session.ChannelMessageEditEmbeds(channelID, message.ID, message.Embeds)
 	if err != nil {
-		return fmt.Errorf("failed to edit scheduled event: %w", err)
-	}
-
-	if len(message.Embeds) > 0 {
-		message.Embeds[0].URL = eventURL
-		_, err = session.ChannelMessageEditEmbeds(channelID, message.ID, message.Embeds)
-		if err != nil {
-			return fmt.Errorf("failed to edit poll message embed: %w", err)
-		}
+		return fmt.Errorf("failed to edit poll message embed: %w", err)
 	}
 
 	return nil
