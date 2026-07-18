@@ -264,7 +264,7 @@ func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n,
 
 	eventParams := &discordgo.GuildScheduledEventParams{
 		Name:               eventTitle,
-		Description:        fmt.Sprintf("投票メッセージ: %s", messageURL),
+		Description:        fmt.Sprintf("%s: %s", i18n.PollMessage, messageURL),
 		ScheduledStartTime: &startTime,
 		ScheduledEndTime:   &endTime,
 		PrivacyLevel:       discordgo.GuildScheduledEventPrivacyLevelGuildOnly,

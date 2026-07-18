@@ -11,6 +11,7 @@ type I18n struct {
 	Absence      string
 	DefaultTitle string
 	VotingPeriod string
+	PollMessage  string
 }
 
 func GetI18n(lang discordgo.Locale) I18n {
@@ -19,6 +20,7 @@ func GetI18n(lang discordgo.Locale) I18n {
 		Absence:      getAbsence(lang),
 		DefaultTitle: getTitle(lang),
 		VotingPeriod: getVotingPeriod(lang),
+		PollMessage:  getPollMessage(lang),
 	}
 }
 
@@ -77,6 +79,18 @@ func getVotingPeriod(lang discordgo.Locale) string {
 	name, ok := votingPeriod[lang]
 	if !ok {
 		return votingPeriod[discordgo.EnglishUS]
+	}
+	return name
+}
+
+func getPollMessage(lang discordgo.Locale) string {
+	pollMessage := map[discordgo.Locale]string{
+		discordgo.EnglishUS: "Poll message",
+		discordgo.Japanese:  "投票メッセージ",
+	}
+	name, ok := pollMessage[lang]
+	if !ok {
+		return pollMessage[discordgo.EnglishUS]
 	}
 	return name
 }
