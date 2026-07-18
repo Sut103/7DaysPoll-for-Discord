@@ -220,7 +220,7 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	}
 	go func() {
 		embeds := message.Embeds
-		embeds[0].Fields[1].Value = "☑️ ⌛"
+		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
 		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
 	}()
 	uniqueVoter := map[string]struct{}{}
@@ -254,6 +254,9 @@ func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n,
 	days := getDays(start, numDays)
 	finalDay := days[len(days)-1]
 
+	// Use the final day of the voting period as the event start time, since once
+	// the scheduled start time passes the event begins automatically and its
+	// start time can no longer be updated after the date is decided.
 	startTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 0, 0, 0, 0, start.Location())
 	now := time.Now()
 	// Discord API requires scheduled start time to be in the future
