@@ -248,8 +248,10 @@ func buildMessageURL(guildID, channelID, messageID string) string {
 	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, channelID, messageID)
 }
 
+const discordEventNameMaxLength = 100
+
 func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
-	eventTitle := i18n.VotingPeriod + title
+	eventTitle := truncateRunes(i18n.VotingPeriod+title, discordEventNameMaxLength)
 
 	days := getDays(start, numDays)
 	finalDay := days[len(days)-1]

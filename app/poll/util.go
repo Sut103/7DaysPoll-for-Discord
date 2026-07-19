@@ -98,3 +98,11 @@ func getPollMessage(lang discordgo.Locale) string {
 func FloatPtr(v float64) *float64 {
 	return &v
 }
+
+func truncateRunes(s string, maxLen int) string {
+	r := []rune(s)
+	if len(r) <= maxLen {
+		return s
+	}
+	return string(r[:maxLen])
+}
