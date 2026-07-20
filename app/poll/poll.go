@@ -176,6 +176,11 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		}
 	}
 
+	// Guild scheduled events cannot be created from DMs; GuildID is empty in that case.
+	if interaction.GuildID == "" {
+		return nil
+	}
+
 	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
 
 	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL)
