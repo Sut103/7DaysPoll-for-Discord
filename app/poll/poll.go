@@ -170,9 +170,9 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		return err
 	}
 	for _, choice := range choices {
-		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji)
-		if err != nil {
-			return err
+		if err := session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji); err != nil {
+			log.Println("Failed to add reaction:", err)
+			break
 		}
 	}
 
