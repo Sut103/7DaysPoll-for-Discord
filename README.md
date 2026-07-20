@@ -19,7 +19,7 @@ The bot can create polls with 2-7 potential dates starting from a specified date
 
 ### Adding the Bot to Your Server
 Use this invitation link to add the bot to your Discord server:
-https://discord.com/api/oauth2/authorize?client_id=1200049972129837107&permissions=64&scope=bot
+https://discord.com/api/oauth2/authorize?client_id=1200049972129837107&permissions=17600776064064&scope=bot
 
 ### Commands
 The bot supports the following slash commands:
