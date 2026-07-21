@@ -36,10 +36,9 @@ func getEmojis() []string {
 	}
 }
 
-func getChoices(locale discordgo.Locale, startDate time.Time, numDays int) []Choice {
+func getChoices(i18n I18n, startDate time.Time, numDays int) []Choice {
 	days := getDays(startDate, numDays)
 	emojis := getEmojis()
-	i18n := GetI18n(locale)
 
 	choices := []Choice{}
 	for i := 0; i < numDays; i++ {
@@ -89,6 +88,7 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 }
 
 func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
+	i18n := GetI18n(interaction.Locale)
 	// get timezone
 	timezone, err := GetTimeZone(string(interaction.Locale))
 	if err != nil {
@@ -104,6 +104,9 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 	title := ""
 	if t, ok := optMap["title"]; ok {
 		title = t.StringValue()
+	}
+	if title == "" {
+		title = i18n.DefaultTitle
 	}
 	// Get number of days (default: 7)
 	numDays := 7
@@ -130,7 +133,7 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 	}
 	// create response
 	content := ""
-	choices := getChoices(interaction.Locale, start, numDays)
+	choices := getChoices(i18n, start, numDays)
 	for _, choice := range choices {
 		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
 	}
@@ -167,11 +170,30 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		return err
 	}
 	for _, choice := range choices {
-		err = session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji)
-		if err != nil {
-			return err
+		if err := session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji); err != nil {
+			log.Println("Failed to add reaction:", err)
+			break
 		}
 	}
+
+	// Guild scheduled events cannot be created from DMs; GuildID is empty in that case.
+	if interaction.GuildID == "" {
+		return nil
+	}
+
+	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
+
+	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL)
+	if err != nil {
+		log.Println("Failed to create guild scheduled event:", err)
+		return nil
+	}
+
+	err = addEventLinkToPollMessage(session, interaction.GuildID, interaction.ChannelID, message, event)
+	if err != nil {
+		log.Println("Failed to add event link to poll message:", err)
+	}
+
 	return nil
 }
 
@@ -224,5 +246,58 @@ func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *di
 	embeds := message.Embeds
 	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
 	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+	return nil
+}
+
+func buildMessageURL(guildID, channelID, messageID string) string {
+	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, channelID, messageID)
+}
+
+const discordEventNameMaxLength = 100
+
+func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
+	eventTitle := truncateRunes(i18n.VotingPeriod+title, discordEventNameMaxLength)
+
+	days := getDays(start, numDays)
+	finalDay := days[len(days)-1]
+
+	// Use the final day of the voting period as the event start time, since once
+	// the scheduled start time passes the event begins automatically and its
+	// start time can no longer be updated after the date is decided.
+	startTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 0, 0, 0, 0, start.Location())
+	now := time.Now()
+	// Discord API requires scheduled start time to be in the future
+	if startTime.Before(now) {
+		startTime = now.Add(1 * time.Minute)
+	}
+	endTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 23, 59, 59, 0, start.Location())
+
+	eventParams := &discordgo.GuildScheduledEventParams{
+		Name:               eventTitle,
+		Description:        fmt.Sprintf("%s: %s", i18n.PollMessage, messageURL),
+		ScheduledStartTime: &startTime,
+		ScheduledEndTime:   &endTime,
+		PrivacyLevel:       discordgo.GuildScheduledEventPrivacyLevelGuildOnly,
+		EntityType:         discordgo.GuildScheduledEventEntityTypeExternal,
+		EntityMetadata: &discordgo.GuildScheduledEventEntityMetadata{
+			Location: messageURL,
+		},
+	}
+
+	return session.GuildScheduledEventCreate(guildID, eventParams)
+}
+
+func addEventLinkToPollMessage(session *discordgo.Session, guildID string, channelID string, message *discordgo.Message, event *discordgo.GuildScheduledEvent) error {
+	if len(message.Embeds) == 0 {
+		return nil
+	}
+
+	eventURL := fmt.Sprintf("https://discord.com/events/%s/%s", guildID, event.ID)
+	message.Embeds[0].URL = eventURL
+	_, err := session.ChannelMessageEditEmbeds(channelID, message.ID, message.Embeds)
+	if err != nil {
+		return fmt.Errorf("failed to edit poll message embed: %w", err)
+	}
+
 	return nil
 }
