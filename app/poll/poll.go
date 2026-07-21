@@ -61,8 +61,8 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 	maxDays := 7
 	return &discordgo.ApplicationCommand{
 		Type:        discordgo.ChatApplicationCommand,
-		Name:        "poll",
-		Description: "Starting Poll from initial date with specified number of days (2-7).",
+		Name:        "poll-classic",
+		Description: "(Classic) Starting Poll with emoji reactions from initial date with specified number of days (2-7).",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "title",
@@ -87,13 +87,19 @@ func GetPollCommand() *discordgo.ApplicationCommand {
 	}
 }
 
-func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
-	i18n := GetI18n(interaction.Locale)
+type pollOptions struct {
+	Title   string
+	Start   time.Time
+	NumDays int
+	OptMap  map[string]*discordgo.ApplicationCommandInteractionDataOption
+}
+
+func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptions, error) {
 	// get timezone
 	timezone, err := GetTimeZone(string(interaction.Locale))
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
-		return err
+		return nil, err
 	}
 	// get options
 	options := interaction.ApplicationCommandData().Options
@@ -131,6 +137,23 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 			start = yd.In(timezone)
 		}
 	}
+	return &pollOptions{
+		Title:   title,
+		Start:   start,
+		NumDays: numDays,
+		OptMap:  optMap,
+	}, nil
+}
+
+func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
+	i18n := GetI18n(interaction.Locale)
+	opts, err := parsePollOptions(interaction, i18n)
+	if err != nil {
+		return err
+	}
+	title := opts.Title
+	start := opts.Start
+	numDays := opts.NumDays
 	// create response
 	content := ""
 	choices := getChoices(i18n, start, numDays)
@@ -253,6 +276,10 @@ func buildMessageURL(guildID, channelID, messageID string) string {
 	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, channelID, messageID)
 }
 
+func buildEventURL(guildID, eventID string) string {
+	return fmt.Sprintf("https://discord.com/events/%s/%s", guildID, eventID)
+}
+
 const discordEventNameMaxLength = 100
 
 func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
@@ -292,8 +319,7 @@ func addEventLinkToPollMessage(session *discordgo.Session, guildID string, chann
 		return nil
 	}
 
-	eventURL := fmt.Sprintf("https://discord.com/events/%s/%s", guildID, event.ID)
-	message.Embeds[0].URL = eventURL
+	message.Embeds[0].URL = buildEventURL(guildID, event.ID)
 	_, err := session.ChannelMessageEditEmbeds(channelID, message.ID, message.Embeds)
 	if err != nil {
 		return fmt.Errorf("failed to edit poll message embed: %w", err)

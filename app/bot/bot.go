@@ -23,10 +23,20 @@ func NewBot(token string) *Bot {
 }
 
 func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := poll.Poll(s, i.Interaction)
+	if i.Type != discordgo.InteractionApplicationCommand {
+		return
+	}
+	var err error
+	switch i.ApplicationCommandData().Name {
+	case "poll":
+		err = poll.NativePoll(s, i.Interaction)
+	case "poll-classic":
+		err = poll.Poll(s, i.Interaction)
+	default:
+		return
+	}
 	if err != nil {
 		log.Println(err)
-		return
 	}
 }
 
