@@ -31,7 +31,7 @@ func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	case "poll":
 		err = poll.NativePoll(s, i.Interaction)
 	case "poll-classic":
-		err = poll.Poll(s, i.Interaction)
+		err = poll.ClassicPoll(s, i.Interaction)
 	default:
 		return
 	}

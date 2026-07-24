@@ -12,7 +12,7 @@ func Register(session *discordgo.Session) error {
 	log.Printf("Registering commands...\n")
 	commands := []*discordgo.ApplicationCommand{
 		poll.GetNativePollCommand(),
-		poll.GetPollCommand(),
+		poll.GetClassicPollCommand(),
 	}
 	for _, command := range commands {
 		_, err := session.ApplicationCommandCreate(session.State.User.ID, "", command)
