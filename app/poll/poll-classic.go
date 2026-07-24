@@ -1,0 +1,183 @@
+package poll
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+func GetClassicPollCommand() *discordgo.ApplicationCommand {
+	minLength := 5
+	minDays := 2
+	maxDays := 7
+	return &discordgo.ApplicationCommand{
+		Type:        discordgo.ChatApplicationCommand,
+		Name:        "poll-classic",
+		Description: "(Classic) Starting Poll with emoji reactions from initial date with specified number of days (2-7).",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "title",
+				Description: "Please enter the title of the poll.",
+				Type:        discordgo.ApplicationCommandOptionString,
+			},
+			{
+				Name:        "start-date",
+				Description: "If you have desired options, please specify the initial date. Example: 08/31",
+				Type:        discordgo.ApplicationCommandOptionString,
+				MaxLength:   5,
+				MinLength:   &minLength,
+			},
+			{
+				Name:        "days",
+				Description: "Number of days for the poll (2-7). Default is 7.",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				MinValue:    FloatPtr(float64(minDays)),
+				MaxValue:    float64(maxDays),
+			},
+		},
+	}
+}
+
+func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction) error {
+	i18n := GetI18n(interaction.Locale)
+	opts, err := parsePollOptions(interaction, i18n)
+	if err != nil {
+		return err
+	}
+	title := opts.Title
+	start := opts.Start
+	numDays := opts.NumDays
+	// create response
+	content := ""
+	choices := getChoices(i18n, start, numDays)
+	for _, choice := range choices {
+		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
+	}
+	embed := discordgo.MessageEmbed{
+		Title:       title,
+		Description: "",
+		Color:       0x780676,
+		Fields: []*discordgo.MessageEmbedField{
+			{
+				Name:   "",
+				Value:  content,
+				Inline: true,
+			},
+			{
+				Name:   "",
+				Value:  "☑️ 0",
+				Inline: true,
+			},
+		},
+	}
+	body := discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{&embed},
+		},
+	}
+	err = session.InteractionRespond(interaction, &body)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	message, err := session.InteractionResponse(interaction)
+	if err != nil {
+		return err
+	}
+	for _, choice := range choices {
+		if err := session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji); err != nil {
+			log.Println("Failed to add reaction:", err)
+			break
+		}
+	}
+
+	// Guild scheduled events cannot be created from DMs; GuildID is empty in that case.
+	if interaction.GuildID == "" {
+		return nil
+	}
+
+	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
+
+	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL)
+	if err != nil {
+		log.Println("Failed to create guild scheduled event:", err)
+		return nil
+	}
+
+	err = addEventLinkToPollMessage(session, interaction.GuildID, interaction.ChannelID, message, event)
+	if err != nil {
+		log.Println("Failed to add event link to poll message:", err)
+	}
+
+	return nil
+}
+
+func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *discordgo.MessageReaction) error {
+	me, err := session.User("@me")
+	if err != nil {
+		return err
+	}
+	if reaction.UserID == me.ID {
+		return nil
+	}
+	emojis := getEmojis()
+	isTargetEmoji := false
+	for _, e := range emojis {
+		if e == reaction.Emoji.Name {
+			isTargetEmoji = true
+			break
+		}
+	}
+	if !isTargetEmoji {
+		return nil
+	}
+	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+	if err != nil {
+		return err
+	}
+	if !(len(message.Embeds) > 0 && len(message.Embeds[0].Fields) > 1) {
+		return nil
+	}
+	go func() {
+		embeds := message.Embeds
+		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
+		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+	}()
+	uniqueVoter := map[string]struct{}{}
+	time.Sleep(1 * time.Second)
+	for _, e := range emojis {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			func(emojiName string) {
+				users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
+				for _, user := range users {
+					uniqueVoter[user.ID] = struct{}{}
+				}
+			}(e)
+		}
+	}
+	embeds := message.Embeds
+	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
+	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
+	return nil
+}
+
+func addEventLinkToPollMessage(session *discordgo.Session, guildID string, channelID string, message *discordgo.Message, event *discordgo.GuildScheduledEvent) error {
+	if len(message.Embeds) == 0 {
+		return nil
+	}
+
+	message.Embeds[0].URL = buildEventURL(guildID, event.ID)
+	_, err := session.ChannelMessageEditEmbeds(channelID, message.ID, message.Embeds)
+	if err != nil {
+		return fmt.Errorf("failed to edit poll message embed: %w", err)
+	}
+
+	return nil
+}

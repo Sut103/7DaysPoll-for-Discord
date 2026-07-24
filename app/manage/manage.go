@@ -10,9 +10,15 @@ import (
 
 func Register(session *discordgo.Session) error {
 	log.Printf("Registering commands...\n")
-	_, err := session.ApplicationCommandCreate(session.State.User.ID, "", poll.GetPollCommand())
-	if err != nil {
-		return err
+	commands := []*discordgo.ApplicationCommand{
+		poll.GetNativePollCommand(),
+		poll.GetClassicPollCommand(),
+	}
+	for _, command := range commands {
+		_, err := session.ApplicationCommandCreate(session.State.User.ID, "", command)
+		if err != nil {
+			return err
+		}
 	}
 	log.Printf("Command registration completed successfully.\n")
 	return nil
