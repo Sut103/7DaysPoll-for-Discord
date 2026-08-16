@@ -122,22 +122,48 @@ func buildEventURL(guildID, eventID string) string {
 
 const discordEventNameMaxLength = 100
 
+// eventStartTime returns the local midnight of the final candidate day —
+// the same value used as the guild scheduled event's start time.
+func eventStartTime(start time.Time, numDays int) time.Time {
+	days := getDays(start, numDays)
+	finalCandidateDay := days[len(days)-1]
+	return time.Date(finalCandidateDay.Year(), finalCandidateDay.Month(), finalCandidateDay.Day(), 0, 0, 0, 0, start.Location())
+}
+
+// minPollDurationHours is the lower bound this bot enforces for a poll's
+// duration when clamping it to fit before a linked scheduled event.
+const minPollDurationHours = 1
+
+// clampPollDurationToEvent floors durationHours so the poll's expiry never
+// exceeds eventStart, guaranteeing pollDeadline <= eventStart. Falls back to
+// minPollDurationHours instead of a non-positive value when eventStart is
+// imminent or already passed.
+func clampPollDurationToEvent(durationHours int, eventStart, now time.Time) int {
+	remainingHours := int(eventStart.Sub(now).Hours()) // truncates toward zero == floor
+	if remainingHours < minPollDurationHours {
+		remainingHours = minPollDurationHours
+	}
+	if durationHours > remainingHours {
+		durationHours = remainingHours
+	}
+	return durationHours
+}
+
 func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
 	eventTitle := truncateRunes(i18n.VotingPeriod+title, discordEventNameMaxLength)
 
-	days := getDays(start, numDays)
-	finalDay := days[len(days)-1]
+	finalCandidateDayMidnight := eventStartTime(start, numDays)
 
 	// Use the final day of the voting period as the event start time, since once
 	// the scheduled start time passes the event begins automatically and its
 	// start time can no longer be updated after the date is decided.
-	startTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 0, 0, 0, 0, start.Location())
+	startTime := finalCandidateDayMidnight
 	now := time.Now()
 	// Discord API requires scheduled start time to be in the future
 	if startTime.Before(now) {
 		startTime = now.Add(1 * time.Minute)
 	}
-	endTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 23, 59, 59, 0, start.Location())
+	endTime := time.Date(finalCandidateDayMidnight.Year(), finalCandidateDayMidnight.Month(), finalCandidateDayMidnight.Day(), 23, 59, 59, 0, start.Location())
 
 	eventParams := &discordgo.GuildScheduledEventParams{
 		Name:               eventTitle,

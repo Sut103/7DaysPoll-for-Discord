@@ -2,6 +2,7 @@ package poll
 
 import (
 	"log"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -80,6 +81,13 @@ func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) 
 			},
 		})
 	}
+	durationHours := durationDays * 24
+	// A poll shouldn't outlive the scheduled event linked to it, so clamp the
+	// duration to the time remaining before the event's start (only relevant
+	// when an event will actually be created, i.e. not in a DM).
+	if interaction.GuildID != "" {
+		durationHours = clampPollDurationToEvent(durationHours, eventStartTime(opts.Start, opts.NumDays), time.Now())
+	}
 	body := discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -87,7 +95,7 @@ func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) 
 				Question:         discordgo.PollMedia{Text: truncateRunes(opts.Title, pollQuestionMaxLength)},
 				Answers:          answers,
 				AllowMultiselect: true,
-				Duration:         durationDays * 24,
+				Duration:         durationHours,
 			},
 		},
 	}
