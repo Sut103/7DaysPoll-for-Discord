@@ -6,7 +6,7 @@
 
 The bot can create polls with 2-7 potential dates starting from a specified date, and it automatically counts unique voters to help you make decisions.
 
-<img width="464" height="704" alt="{CDF2B086-C0D6-4DF4-80C2-7ACCB343DF2B}" src="https://github.com/user-attachments/assets/c053cf6f-0879-42d2-81fe-e8a66b7191c5" />
+<img width="464" height="704" alt="Example of a native Discord poll created by /poll, with a linked scheduled event" src="https://github.com/user-attachments/assets/c053cf6f-0879-42d2-81fe-e8a66b7191c5" />
 
 
 ## Features
