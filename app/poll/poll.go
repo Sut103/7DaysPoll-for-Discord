@@ -1,7 +1,6 @@
 package poll
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -55,45 +54,19 @@ func getChoices(i18n I18n, startDate time.Time, numDays int) []Choice {
 	return choices
 }
 
-func GetPollCommand() *discordgo.ApplicationCommand {
-	minLength := 5
-	minDays := 2
-	maxDays := 7
-	return &discordgo.ApplicationCommand{
-		Type:        discordgo.ChatApplicationCommand,
-		Name:        "poll",
-		Description: "Starting Poll from initial date with specified number of days (2-7).",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Name:        "title",
-				Description: "Please enter the title of the poll.",
-				Type:        discordgo.ApplicationCommandOptionString,
-			},
-			{
-				Name:        "start-date",
-				Description: "If you have desired options, please specify the initial date. Example: 08/31",
-				Type:        discordgo.ApplicationCommandOptionString,
-				MaxLength:   5,
-				MinLength:   &minLength,
-			},
-			{
-				Name:        "days",
-				Description: "Number of days for the poll (2-7). Default is 7.",
-				Type:        discordgo.ApplicationCommandOptionInteger,
-				MinValue:    FloatPtr(float64(minDays)),
-				MaxValue:    float64(maxDays),
-			},
-		},
-	}
+type pollOptions struct {
+	Title   string
+	Start   time.Time
+	NumDays int
+	OptMap  map[string]*discordgo.ApplicationCommandInteractionDataOption
 }
 
-func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error {
-	i18n := GetI18n(interaction.Locale)
+func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptions, error) {
 	// get timezone
-	timezone, err := GetTimeZone(string(interaction.Locale))
+	timezone, err := GetTimeZone(interaction.Locale)
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
-		return err
+		return nil, err
 	}
 	// get options
 	options := interaction.ApplicationCommandData().Options
@@ -119,163 +92,87 @@ func Poll(session *discordgo.Session, interaction *discordgo.Interaction) error 
 		}
 	}
 	// judgement start date
-	now := time.Now()
+	now := time.Now().In(timezone)
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
 	if date, ok := optMap["start-date"]; ok {
 		yearDate := fmt.Sprintf("%d/%s", now.Year(), date.StringValue())
-		yd, err := time.Parse("2006/01/02", yearDate)
+		yd, err := time.ParseInLocation("2006/01/02", yearDate, timezone)
 		if err == nil {
 			if start.After(yd) {
 				yd = yd.AddDate(1, 0, 0)
 			}
-			start = yd.In(timezone)
+			start = yd
 		}
 	}
-	// create response
-	content := ""
-	choices := getChoices(i18n, start, numDays)
-	for _, choice := range choices {
-		content += fmt.Sprintf("%s %s\n", choice.Emoji, choice.Name)
-	}
-	embed := discordgo.MessageEmbed{
-		Title:       title,
-		Description: "",
-		Color:       0x780676,
-		Fields: []*discordgo.MessageEmbedField{
-			{
-				Name:   "",
-				Value:  content,
-				Inline: true,
-			},
-			{
-				Name:   "",
-				Value:  "☑️ 0",
-				Inline: true,
-			},
-		},
-	}
-	body := discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{&embed},
-		},
-	}
-	err = session.InteractionRespond(interaction, &body)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-	message, err := session.InteractionResponse(interaction)
-	if err != nil {
-		return err
-	}
-	for _, choice := range choices {
-		if err := session.MessageReactionAdd(interaction.ChannelID, message.ID, choice.Emoji); err != nil {
-			log.Println("Failed to add reaction:", err)
-			break
-		}
-	}
-
-	// Guild scheduled events cannot be created from DMs; GuildID is empty in that case.
-	if interaction.GuildID == "" {
-		return nil
-	}
-
-	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
-
-	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL)
-	if err != nil {
-		log.Println("Failed to create guild scheduled event:", err)
-		return nil
-	}
-
-	err = addEventLinkToPollMessage(session, interaction.GuildID, interaction.ChannelID, message, event)
-	if err != nil {
-		log.Println("Failed to add event link to poll message:", err)
-	}
-
-	return nil
-}
-
-func AggregatePoll(ctx context.Context, session *discordgo.Session, reaction *discordgo.MessageReaction) error {
-	me, err := session.User("@me")
-	if err != nil {
-		return err
-	}
-	if reaction.UserID == me.ID {
-		return nil
-	}
-	emojis := getEmojis()
-	isTargetEmoji := false
-	for _, e := range emojis {
-		if e == reaction.Emoji.Name {
-			isTargetEmoji = true
-			break
-		}
-	}
-	if !isTargetEmoji {
-		return nil
-	}
-	message, err := session.ChannelMessage(reaction.ChannelID, reaction.MessageID)
-	if err != nil {
-		return err
-	}
-	if !(len(message.Embeds) > 0 && len(message.Embeds[0].Fields) > 1) {
-		return nil
-	}
-	go func() {
-		embeds := message.Embeds
-		embeds[0].Fields[1].Value = "☑️ ⌛" // It takes about 5 seconds for MessageReactions()
-		session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
-	}()
-	uniqueVoter := map[string]struct{}{}
-	time.Sleep(1 * time.Second)
-	for _, e := range emojis {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			func(emojiName string) {
-				users, _ := session.MessageReactions(reaction.ChannelID, message.ID, emojiName, 100, "", "")
-				for _, user := range users {
-					uniqueVoter[user.ID] = struct{}{}
-				}
-			}(e)
-		}
-	}
-	embeds := message.Embeds
-	embeds[0].Fields[1].Value = fmt.Sprintf("☑️ %d", len(uniqueVoter)-1)
-	session.ChannelMessageEditEmbeds(reaction.ChannelID, message.ID, embeds)
-	return nil
+	return &pollOptions{
+		Title:   title,
+		Start:   start,
+		NumDays: numDays,
+		OptMap:  optMap,
+	}, nil
 }
 
 func buildMessageURL(guildID, channelID, messageID string) string {
 	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, channelID, messageID)
 }
 
+func buildEventURL(guildID, eventID string) string {
+	return fmt.Sprintf("https://discord.com/events/%s/%s", guildID, eventID)
+}
+
 const discordEventNameMaxLength = 100
 
-func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
-	eventTitle := truncateRunes(i18n.VotingPeriod+title, discordEventNameMaxLength)
-
+// eventStartTime returns the local midnight of the final candidate day. This
+// is used as the guild scheduled event's start time, since once the
+// scheduled start time passes the event begins automatically and its start
+// time can no longer be updated after the date is decided.
+func eventStartTime(start time.Time, numDays int) time.Time {
 	days := getDays(start, numDays)
-	finalDay := days[len(days)-1]
+	finalCandidateDay := days[len(days)-1]
+	return time.Date(finalCandidateDay.Year(), finalCandidateDay.Month(), finalCandidateDay.Day(), 0, 0, 0, 0, start.Location())
+}
 
-	// Use the final day of the voting period as the event start time, since once
-	// the scheduled start time passes the event begins automatically and its
-	// start time can no longer be updated after the date is decided.
-	startTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 0, 0, 0, 0, start.Location())
-	now := time.Now()
-	// Discord API requires scheduled start time to be in the future
+// resolveEventStartTime returns the guild scheduled event's start time: the
+// local midnight of the final candidate day, bumped to now+1 minute if that
+// midnight has already passed (Discord requires the scheduled start time to
+// be in the future).
+func resolveEventStartTime(start time.Time, numDays int, now time.Time) time.Time {
+	startTime := eventStartTime(start, numDays)
 	if startTime.Before(now) {
 		startTime = now.Add(1 * time.Minute)
 	}
-	endTime := time.Date(finalDay.Year(), finalDay.Month(), finalDay.Day(), 23, 59, 59, 0, start.Location())
+	return startTime
+}
+
+// minPollDurationHours is the lower bound this bot enforces for a poll's
+// duration when clamping it to fit before a linked scheduled event.
+const minPollDurationHours = 1
+
+// clampPollDurationToEvent floors durationHours so the poll's expiry never
+// exceeds eventStart, guaranteeing pollDeadline <= eventStart. Falls back to
+// minPollDurationHours instead of a non-positive value when eventStart is
+// imminent or already passed.
+func clampPollDurationToEvent(durationHours int, eventStart, now time.Time) int {
+	remainingHours := int(eventStart.Sub(now).Hours()) // truncates toward zero == floor
+	if remainingHours < minPollDurationHours {
+		remainingHours = minPollDurationHours
+	}
+	if durationHours > remainingHours {
+		durationHours = remainingHours
+	}
+	return durationHours
+}
+
+func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string, eventStart time.Time) (*discordgo.GuildScheduledEvent, error) {
+	eventTitle := truncateRunes(i18n.VotingPeriod+title, discordEventNameMaxLength)
+
+	finalCandidateDayMidnight := eventStartTime(start, numDays)
+	endTime := time.Date(finalCandidateDayMidnight.Year(), finalCandidateDayMidnight.Month(), finalCandidateDayMidnight.Day(), 23, 59, 59, 0, start.Location())
 
 	eventParams := &discordgo.GuildScheduledEventParams{
 		Name:               eventTitle,
 		Description:        fmt.Sprintf("%s: %s", i18n.PollMessage, messageURL),
-		ScheduledStartTime: &startTime,
+		ScheduledStartTime: &eventStart,
 		ScheduledEndTime:   &endTime,
 		PrivacyLevel:       discordgo.GuildScheduledEventPrivacyLevelGuildOnly,
 		EntityType:         discordgo.GuildScheduledEventEntityTypeExternal,
@@ -285,19 +182,4 @@ func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n,
 	}
 
 	return session.GuildScheduledEventCreate(guildID, eventParams)
-}
-
-func addEventLinkToPollMessage(session *discordgo.Session, guildID string, channelID string, message *discordgo.Message, event *discordgo.GuildScheduledEvent) error {
-	if len(message.Embeds) == 0 {
-		return nil
-	}
-
-	eventURL := fmt.Sprintf("https://discord.com/events/%s/%s", guildID, event.ID)
-	message.Embeds[0].URL = eventURL
-	_, err := session.ChannelMessageEditEmbeds(channelID, message.ID, message.Embeds)
-	if err != nil {
-		return fmt.Errorf("failed to edit poll message embed: %w", err)
-	}
-
-	return nil
 }

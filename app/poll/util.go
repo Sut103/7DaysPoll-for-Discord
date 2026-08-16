@@ -24,9 +24,9 @@ func GetI18n(lang discordgo.Locale) I18n {
 	}
 }
 
-func GetTimeZone(lang string) (*time.Location, error) {
-	timezone := map[string]string{
-		"Japanese": "Asia/Tokyo",
+func GetTimeZone(lang discordgo.Locale) (*time.Location, error) {
+	timezone := map[discordgo.Locale]string{
+		discordgo.Japanese: "Asia/Tokyo",
 	}
 	tz, ok := timezone[lang]
 	if !ok {
