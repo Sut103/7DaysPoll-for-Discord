@@ -11,6 +11,8 @@ const (
 	minDurationDays     = 1
 	// Discord allows polls to stay open for up to 32 days (768 hours).
 	maxDurationDays = 32
+	// Discord's poll question text is capped at 300 characters.
+	pollQuestionMaxLength = 300
 )
 
 func GetNativePollCommand() *discordgo.ApplicationCommand {
@@ -26,6 +28,7 @@ func GetNativePollCommand() *discordgo.ApplicationCommand {
 				Name:        "title",
 				Description: "Please enter the title of the poll.",
 				Type:        discordgo.ApplicationCommandOptionString,
+				MaxLength:   pollQuestionMaxLength,
 			},
 			{
 				Name:        "start-date",
@@ -81,7 +84,7 @@ func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) 
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Poll: &discordgo.Poll{
-				Question:         discordgo.PollMedia{Text: opts.Title},
+				Question:         discordgo.PollMedia{Text: truncateRunes(opts.Title, pollQuestionMaxLength)},
 				Answers:          answers,
 				AllowMultiselect: true,
 				Duration:         durationDays * 24,
