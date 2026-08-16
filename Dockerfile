@@ -1,4 +1,4 @@
-FROM golang:1.24.3 AS build
+FROM golang:1.25.13 AS build
 WORKDIR /7dayspoll
 COPY /app  .
 RUN GOARCH=amd64 GOOS=linux go build -tags 7dayspoll-build -o main main.go
