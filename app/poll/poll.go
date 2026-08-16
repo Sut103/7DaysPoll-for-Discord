@@ -92,16 +92,16 @@ func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptio
 		}
 	}
 	// judgement start date
-	now := time.Now()
+	now := time.Now().In(timezone)
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
 	if date, ok := optMap["start-date"]; ok {
 		yearDate := fmt.Sprintf("%d/%s", now.Year(), date.StringValue())
-		yd, err := time.Parse("2006/01/02", yearDate)
+		yd, err := time.ParseInLocation("2006/01/02", yearDate, timezone)
 		if err == nil {
 			if start.After(yd) {
 				yd = yd.AddDate(1, 0, 0)
 			}
-			start = yd.In(timezone)
+			start = yd
 		}
 	}
 	return &pollOptions{
