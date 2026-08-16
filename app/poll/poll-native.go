@@ -84,9 +84,14 @@ func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) 
 	durationHours := durationDays * 24
 	// A poll shouldn't outlive the scheduled event linked to it, so clamp the
 	// duration to the time remaining before the event's start (only relevant
-	// when an event will actually be created, i.e. not in a DM).
+	// when an event will actually be created, i.e. not in a DM). eventStart is
+	// reused below when actually creating the event, so the two can never
+	// disagree on when the event starts.
+	now := time.Now()
+	var eventStart time.Time
 	if interaction.GuildID != "" {
-		durationHours = clampPollDurationToEvent(durationHours, eventStartTime(opts.Start, opts.NumDays), time.Now())
+		eventStart = resolveEventStartTime(opts.Start, opts.NumDays, now)
+		durationHours = clampPollDurationToEvent(durationHours, eventStart, now)
 	}
 	body := discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -116,7 +121,7 @@ func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) 
 	}
 	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
 
-	event, err := createScheduledEvent(session, interaction.GuildID, i18n, opts.Start, opts.NumDays, opts.Title, messageURL)
+	event, err := createScheduledEvent(session, interaction.GuildID, i18n, opts.Start, opts.NumDays, opts.Title, messageURL, eventStart)
 	if err != nil {
 		log.Println("Failed to create guild scheduled event:", err)
 		return nil

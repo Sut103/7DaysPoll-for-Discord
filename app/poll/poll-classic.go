@@ -102,7 +102,8 @@ func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction)
 
 	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
 
-	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL)
+	eventStart := resolveEventStartTime(start, numDays, time.Now())
+	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL, eventStart)
 	if err != nil {
 		log.Println("Failed to create guild scheduled event:", err)
 		return nil

@@ -63,7 +63,7 @@ type pollOptions struct {
 
 func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptions, error) {
 	// get timezone
-	timezone, err := GetTimeZone(string(interaction.Locale))
+	timezone, err := GetTimeZone(interaction.Locale)
 	if err != nil {
 		log.Println(http.StatusInternalServerError, "timezone error", err)
 		return nil, err
@@ -122,12 +122,26 @@ func buildEventURL(guildID, eventID string) string {
 
 const discordEventNameMaxLength = 100
 
-// eventStartTime returns the local midnight of the final candidate day —
-// the same value used as the guild scheduled event's start time.
+// eventStartTime returns the local midnight of the final candidate day. This
+// is used as the guild scheduled event's start time, since once the
+// scheduled start time passes the event begins automatically and its start
+// time can no longer be updated after the date is decided.
 func eventStartTime(start time.Time, numDays int) time.Time {
 	days := getDays(start, numDays)
 	finalCandidateDay := days[len(days)-1]
 	return time.Date(finalCandidateDay.Year(), finalCandidateDay.Month(), finalCandidateDay.Day(), 0, 0, 0, 0, start.Location())
+}
+
+// resolveEventStartTime returns the guild scheduled event's start time: the
+// local midnight of the final candidate day, bumped to now+1 minute if that
+// midnight has already passed (Discord requires the scheduled start time to
+// be in the future).
+func resolveEventStartTime(start time.Time, numDays int, now time.Time) time.Time {
+	startTime := eventStartTime(start, numDays)
+	if startTime.Before(now) {
+		startTime = now.Add(1 * time.Minute)
+	}
+	return startTime
 }
 
 // minPollDurationHours is the lower bound this bot enforces for a poll's
@@ -149,26 +163,16 @@ func clampPollDurationToEvent(durationHours int, eventStart, now time.Time) int 
 	return durationHours
 }
 
-func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string) (*discordgo.GuildScheduledEvent, error) {
+func createScheduledEvent(session *discordgo.Session, guildID string, i18n I18n, start time.Time, numDays int, title string, messageURL string, eventStart time.Time) (*discordgo.GuildScheduledEvent, error) {
 	eventTitle := truncateRunes(i18n.VotingPeriod+title, discordEventNameMaxLength)
 
 	finalCandidateDayMidnight := eventStartTime(start, numDays)
-
-	// Use the final day of the voting period as the event start time, since once
-	// the scheduled start time passes the event begins automatically and its
-	// start time can no longer be updated after the date is decided.
-	startTime := finalCandidateDayMidnight
-	now := time.Now()
-	// Discord API requires scheduled start time to be in the future
-	if startTime.Before(now) {
-		startTime = now.Add(1 * time.Minute)
-	}
 	endTime := time.Date(finalCandidateDayMidnight.Year(), finalCandidateDayMidnight.Month(), finalCandidateDayMidnight.Day(), 23, 59, 59, 0, start.Location())
 
 	eventParams := &discordgo.GuildScheduledEventParams{
 		Name:               eventTitle,
 		Description:        fmt.Sprintf("%s: %s", i18n.PollMessage, messageURL),
-		ScheduledStartTime: &startTime,
+		ScheduledStartTime: &eventStart,
 		ScheduledEndTime:   &endTime,
 		PrivacyLevel:       discordgo.GuildScheduledEventPrivacyLevelGuildOnly,
 		EntityType:         discordgo.GuildScheduledEventEntityTypeExternal,
