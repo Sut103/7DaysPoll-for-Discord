@@ -2,7 +2,7 @@ module 7DaysPoll
 
 go 1.25.0
 
-require github.com/bwmarrin/discordgo v0.27.1
+require github.com/bwmarrin/discordgo v0.29.0
 
 require (
 	github.com/gorilla/websocket v1.4.2 // indirect
