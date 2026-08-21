@@ -79,10 +79,14 @@ const pollEndAutocompleteScanLimit = 100
 
 // PollEndAutocomplete answers the autocomplete interaction for /poll-end's
 // "message" option. It scans the most recent messages in the invoking
-// channel for not-yet-finalized poll messages, matches their question text
-// against the user's partial input, and returns up to Discord's 25-choice
-// limit — displaying the poll's title while the value sent on selection is
-// the message ID (consumed unchanged by resolvePollMessageID).
+// channel for this bot's own not-yet-finalized poll messages, matches their
+// question text against the user's partial input, and returns up to
+// Discord's 25-choice limit — displaying the poll's title while the value
+// sent on selection is the message ID (consumed unchanged by
+// resolvePollMessageID). Only this bot's own messages are considered: a poll
+// attached by a different app/user would pass this filter but always fail
+// canEndPoll's later PollExpire call, since Discord rejects ending a poll
+// owned by another application.
 func PollEndAutocomplete(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	data := interaction.ApplicationCommandData()
 	query := strings.ToLower(strings.TrimSpace(data.Options[0].StringValue()))
@@ -98,7 +102,10 @@ func PollEndAutocomplete(session *discordgo.Session, interaction *discordgo.Inte
 		if message.Poll == nil {
 			continue
 		}
-		if message.Poll.Results != nil && message.Poll.Results.Finalized {
+		if message.Author == nil || message.Author.ID != session.State.User.ID {
+			continue
+		}
+		if pollFinalized(message.Poll) {
 			continue
 		}
 		title := message.Poll.Question.Text
@@ -161,15 +168,19 @@ func resolvePollMessageID(input, currentChannelID string) (string, error) {
 // to end a native poll. (Discord's REST API only blocks ending a poll owned
 // by a *different application*; per-member access control within our own
 // bot's polls is entirely our responsibility.)
+//
+// The permission check runs before the poll-exists/already-ended checks so
+// that a member with no rights over the target message learns nothing about
+// its state beyond "you can't do that".
 func endPollMessage(session *discordgo.Session, interaction *discordgo.Interaction, message *discordgo.Message, i18n I18n) error {
+	if !canEndPoll(interaction, message) {
+		return respondEphemeral(session, interaction, i18n.PollEndNoPermission)
+	}
 	if message.Poll == nil {
 		return respondEphemeral(session, interaction, i18n.PollNotFound)
 	}
-	if message.Poll.Results != nil && message.Poll.Results.Finalized {
+	if pollFinalized(message.Poll) {
 		return respondEphemeral(session, interaction, i18n.PollAlreadyEnded)
-	}
-	if !canEndPoll(interaction, message) {
-		return respondEphemeral(session, interaction, i18n.PollEndNoPermission)
 	}
 
 	if _, err := session.PollExpire(message.ChannelID, message.ID); err != nil {
@@ -177,6 +188,13 @@ func endPollMessage(session *discordgo.Session, interaction *discordgo.Interacti
 		return respondEphemeral(session, interaction, i18n.PollEndFailed)
 	}
 	return respondEphemeral(session, interaction, i18n.PollEndSuccess)
+}
+
+// pollFinalized reports whether a poll has already ended, per Discord's
+// Results.Finalized flag (Results itself is nil until the poll has either
+// expired or been fetched with vote data).
+func pollFinalized(poll *discordgo.Poll) bool {
+	return poll.Results != nil && poll.Results.Finalized
 }
 
 // pollCreatorID returns the ID of the human who ran the slash command that
@@ -191,12 +209,35 @@ func pollCreatorID(message *discordgo.Message) string {
 	return ""
 }
 
+// interactionUserID returns the ID of the human who invoked the interaction,
+// whether it happened in a guild (interaction.Member) or a DM
+// (interaction.Member is nil there; interaction.User is set instead). Native
+// polls can be created via /poll in a DM (poll-native.go's NativePoll only
+// skips the guild-scheduled-event step there), so /poll-end and "End Poll"
+// must recognize the DM invoker too.
+func interactionUserID(interaction *discordgo.Interaction) string {
+	if interaction.Member != nil && interaction.Member.User != nil {
+		return interaction.Member.User.ID
+	}
+	if interaction.User != nil {
+		return interaction.User.ID
+	}
+	return ""
+}
+
 func canEndPoll(interaction *discordgo.Interaction, message *discordgo.Message) bool {
-	if interaction.Member == nil || interaction.Member.User == nil {
+	userID := interactionUserID(interaction)
+	if userID == "" {
 		return false
 	}
-	if id := pollCreatorID(message); id != "" && id == interaction.Member.User.ID {
+	if id := pollCreatorID(message); id != "" && id == userID {
 		return true
+	}
+	// "Manage Messages" is a per-channel guild permission; it has no meaning
+	// in a DM (interaction.Member is nil there), so only the poll's creator
+	// can end it in that context.
+	if interaction.Member == nil {
+		return false
 	}
 	return interaction.Member.Permissions&discordgo.PermissionManageMessages != 0
 }
