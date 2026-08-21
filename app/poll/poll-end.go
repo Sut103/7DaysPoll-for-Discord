@@ -29,12 +29,19 @@ func EndPollMessageCommand(session *discordgo.Session, interaction *discordgo.In
 	i18n := GetI18n(interaction.Locale)
 	data := interaction.ApplicationCommandData()
 
-	if data.Resolved == nil {
-		return respondEphemeral(session, interaction, i18n.PollNotFound)
+	var message *discordgo.Message
+	if data.Resolved != nil {
+		message = data.Resolved.Messages[data.TargetID]
 	}
-	message, ok := data.Resolved.Messages[data.TargetID]
-	if !ok {
-		return respondEphemeral(session, interaction, i18n.PollNotFound)
+	if message == nil {
+		// Folding this into the same generic response canEndPoll would give
+		// a non-moderator keeps them from learning anything from the
+		// difference between "couldn't resolve the target message" and
+		// "resolved, but not yours".
+		if hasManageMessages(interaction) {
+			return respondEphemeral(session, interaction, i18n.PollNotFound)
+		}
+		return respondEphemeral(session, interaction, i18n.PollEndNoPermission)
 	}
 	return endPollMessage(session, interaction, message, i18n)
 }
@@ -72,7 +79,15 @@ func EndPollSlashCommand(session *discordgo.Session, interaction *discordgo.Inte
 	}
 	message, err := session.ChannelMessage(interaction.ChannelID, messageID)
 	if err != nil {
-		return respondEphemeral(session, interaction, i18n.PollNotFound)
+		// Same fold as EndPollMessageCommand: a non-moderator gets the
+		// generic no-permission response instead of learning the message
+		// couldn't be found, so the response can't be used to probe whether
+		// a given ID is a poll in this channel without the rights
+		// endPollMessage would require anyway.
+		if hasManageMessages(interaction) {
+			return respondEphemeral(session, interaction, i18n.PollNotFound)
+		}
+		return respondEphemeral(session, interaction, i18n.PollEndNoPermission)
 	}
 	return endPollMessage(session, interaction, message, i18n)
 }
@@ -113,9 +128,34 @@ type pollEndAutocompleteCacheEntry struct {
 }
 
 var (
-	pollEndAutocompleteCache   = make(map[string]pollEndAutocompleteCacheEntry)
+	// pollEndAutocompleteCacheMu guards both maps below.
 	pollEndAutocompleteCacheMu sync.Mutex
+	pollEndAutocompleteCache   = make(map[string]pollEndAutocompleteCacheEntry)
+	// pollEndAutocompleteChannelLocks holds one mutex per channel that has
+	// been queried, serializing the check-then-fetch-then-store sequence in
+	// pollEndCandidates per channel. Without this, concurrent autocomplete
+	// interactions landing within the same keystroke burst (Discord fires
+	// one per keystroke, no debounce) could each observe a cache miss and
+	// each issue their own ChannelMessages call before either had written
+	// its result back, defeating the point of the cache. Unlike the
+	// candidate cache, entries here are never evicted: a *sync.Mutex is
+	// tiny, and evicting one while another goroutine might be mid-lookup for
+	// it would reintroduce the exact race this map exists to prevent.
+	pollEndAutocompleteChannelLocks = make(map[string]*sync.Mutex)
 )
+
+// pollEndChannelLock returns the per-channel mutex used to serialize cache
+// fetches for one channel, creating it on first use.
+func pollEndChannelLock(channelID string) *sync.Mutex {
+	pollEndAutocompleteCacheMu.Lock()
+	defer pollEndAutocompleteCacheMu.Unlock()
+	lock, ok := pollEndAutocompleteChannelLocks[channelID]
+	if !ok {
+		lock = &sync.Mutex{}
+		pollEndAutocompleteChannelLocks[channelID] = lock
+	}
+	return lock
+}
 
 // pollEndCandidates returns this bot's own non-finalized polls among the
 // channel's recent messages, reusing a cached result for up to
@@ -124,6 +164,10 @@ var (
 // fail canEndPoll's later PollExpire call, since Discord rejects ending a
 // poll owned by another application.
 func pollEndCandidates(session *discordgo.Session, channelID string) ([]pollEndCandidate, error) {
+	lock := pollEndChannelLock(channelID)
+	lock.Lock()
+	defer lock.Unlock()
+
 	pollEndAutocompleteCacheMu.Lock()
 	entry, ok := pollEndAutocompleteCache[channelID]
 	pollEndAutocompleteCacheMu.Unlock()
@@ -244,7 +288,11 @@ func resolvePollMessageID(input, currentChannelID string) (string, error) {
 //
 // The permission check runs before the poll-exists/already-ended checks so
 // that a member with no rights over the target message learns nothing about
-// its state beyond "you can't do that".
+// its state beyond "you can't do that". EndPollMessageCommand and
+// EndPollSlashCommand preserve this even for their own message-resolution
+// failures (which happen before this function is ever called): a
+// non-moderator gets the same PollEndNoPermission response whether the
+// message couldn't be resolved or was resolved but isn't theirs to end.
 func endPollMessage(session *discordgo.Session, interaction *discordgo.Interaction, message *discordgo.Message, i18n I18n) error {
 	if !canEndPoll(interaction, message) {
 		return respondEphemeral(session, interaction, i18n.PollEndNoPermission)
@@ -329,13 +377,17 @@ func canEndPoll(interaction *discordgo.Interaction, message *discordgo.Message) 
 	if id := pollCreatorID(message); id != "" && id == userID {
 		return true
 	}
-	// "Manage Messages" is a per-channel guild permission; it has no meaning
-	// in a DM (interaction.Member is nil there), so only the poll's creator
-	// can end it in that context.
-	if interaction.Member == nil {
-		return false
-	}
-	return interaction.Member.Permissions&discordgo.PermissionManageMessages != 0
+	return hasManageMessages(interaction)
+}
+
+// hasManageMessages reports whether the invoking member has the "Manage
+// Messages" permission in the channel the interaction was sent in. Unlike
+// canEndPoll, this doesn't need a specific message, so callers can check it
+// before a message has even been fetched. It's always false in a DM
+// (interaction.Member is nil there): "Manage Messages" is a per-channel
+// guild permission with no meaning outside a guild channel.
+func hasManageMessages(interaction *discordgo.Interaction) bool {
+	return interaction.Member != nil && interaction.Member.Permissions&discordgo.PermissionManageMessages != 0
 }
 
 func respondEphemeral(session *discordgo.Session, interaction *discordgo.Interaction, content string) error {
