@@ -58,7 +58,8 @@ func GetNativePollCommand() *discordgo.ApplicationCommand {
 
 func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	i18n := GetI18n(interaction.Locale)
-	opts, err := parsePollOptions(interaction, i18n)
+	now := time.Now()
+	opts, err := parsePollOptions(interaction, i18n, now)
 	if err != nil {
 		return err
 	}
@@ -87,7 +88,6 @@ func NativePoll(session *discordgo.Session, interaction *discordgo.Interaction) 
 	// when an event will actually be created, i.e. not in a DM). eventStart is
 	// reused below when actually creating the event, so the two can never
 	// disagree on when the event starts.
-	now := time.Now()
 	var eventStart time.Time
 	if interaction.GuildID != "" {
 		eventStart = resolveEventStartTime(opts.Start, opts.NumDays, now)

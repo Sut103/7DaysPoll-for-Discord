@@ -166,10 +166,14 @@ func intOpt(name string, value int) *discordgo.ApplicationCommandInteractionData
 
 func TestParsePollOptions(t *testing.T) {
 	i18n := I18n{DefaultTitle: "Poll"}
+	// A fixed reference "now", used everywhere below instead of the real
+	// wall clock, so results are fully deterministic regardless of when or
+	// how fast the test runs.
+	fixedNow := time.Date(2026, time.June, 15, 9, 0, 0, 0, time.UTC)
 
 	t.Run("title falls back to the default when not given", func(t *testing.T) {
 		interaction := newCommandInteraction(discordgo.EnglishUS, nil)
-		opts, err := parsePollOptions(interaction, i18n)
+		opts, err := parsePollOptions(interaction, i18n, fixedNow)
 		if err != nil {
 			t.Fatalf("parsePollOptions() error = %v", err)
 		}
@@ -182,7 +186,7 @@ func TestParsePollOptions(t *testing.T) {
 		interaction := newCommandInteraction(discordgo.EnglishUS, []*discordgo.ApplicationCommandInteractionDataOption{
 			stringOpt("title", "My Poll"),
 		})
-		opts, err := parsePollOptions(interaction, i18n)
+		opts, err := parsePollOptions(interaction, i18n, fixedNow)
 		if err != nil {
 			t.Fatalf("parsePollOptions() error = %v", err)
 		}
@@ -193,7 +197,7 @@ func TestParsePollOptions(t *testing.T) {
 
 	t.Run("days defaults to 7 when not given", func(t *testing.T) {
 		interaction := newCommandInteraction(discordgo.EnglishUS, nil)
-		opts, err := parsePollOptions(interaction, i18n)
+		opts, err := parsePollOptions(interaction, i18n, fixedNow)
 		if err != nil {
 			t.Fatalf("parsePollOptions() error = %v", err)
 		}
@@ -216,7 +220,7 @@ func TestParsePollOptions(t *testing.T) {
 			interaction := newCommandInteraction(discordgo.EnglishUS, []*discordgo.ApplicationCommandInteractionDataOption{
 				intOpt("days", tt.given),
 			})
-			opts, err := parsePollOptions(interaction, i18n)
+			opts, err := parsePollOptions(interaction, i18n, fixedNow)
 			if err != nil {
 				t.Fatalf("parsePollOptions() error = %v", err)
 			}
@@ -231,11 +235,11 @@ func TestParsePollOptions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetTimeZone() error = %v", err)
 		}
-		now := time.Now().In(timezone)
-		wantStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
+		localNow := fixedNow.In(timezone)
+		wantStart := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, timezone)
 
 		interaction := newCommandInteraction(discordgo.EnglishUS, nil)
-		opts, err := parsePollOptions(interaction, i18n)
+		opts, err := parsePollOptions(interaction, i18n, fixedNow)
 		if err != nil {
 			t.Fatalf("parsePollOptions() error = %v", err)
 		}
@@ -250,7 +254,7 @@ func TestParsePollOptions(t *testing.T) {
 		// currently has no locale that reaches its error branch; this test
 		// documents that GetTimeZone never errors for the locales in use.
 		interaction := newCommandInteraction(discordgo.German, nil)
-		_, err := parsePollOptions(interaction, i18n)
+		_, err := parsePollOptions(interaction, i18n, fixedNow)
 		if err != nil {
 			t.Fatalf("parsePollOptions() error = %v, want nil", err)
 		}

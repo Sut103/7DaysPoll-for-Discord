@@ -43,7 +43,7 @@ func GetClassicPollCommand() *discordgo.ApplicationCommand {
 
 func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	i18n := GetI18n(interaction.Locale)
-	opts, err := parsePollOptions(interaction, i18n)
+	opts, err := parsePollOptions(interaction, i18n, time.Now())
 	if err != nil {
 		return err
 	}

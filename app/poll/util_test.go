@@ -9,25 +9,30 @@ import (
 )
 
 func TestGetTimeZone(t *testing.T) {
-	tests := []struct {
-		name     string
-		locale   discordgo.Locale
-		wantName string
-	}{
-		{"japanese locale maps to Asia/Tokyo", discordgo.Japanese, "Asia/Tokyo"},
-		{"unknown locale falls back to time.Local", discordgo.EnglishUS, time.Local.String()},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTimeZone(tt.locale)
-			if err != nil {
-				t.Fatalf("GetTimeZone(%v) returned error: %v", tt.locale, err)
-			}
-			if got.String() != tt.wantName {
-				t.Errorf("GetTimeZone(%v) = %v, want %v", tt.locale, got.String(), tt.wantName)
-			}
-		})
-	}
+	t.Run("japanese locale maps to Asia/Tokyo", func(t *testing.T) {
+		got, err := GetTimeZone(discordgo.Japanese)
+		if err != nil {
+			t.Fatalf("GetTimeZone(Japanese) returned error: %v", err)
+		}
+		if got.String() != "Asia/Tokyo" {
+			t.Errorf("GetTimeZone(Japanese) = %v, want Asia/Tokyo", got.String())
+		}
+	})
+
+	t.Run("unknown locale falls back to the process's time.Local", func(t *testing.T) {
+		// Compared by identity, not by name: time.Local and time.UTC are
+		// always distinct *Location values, so this catches the fallback
+		// ever changing to a different fixed zone even in an environment
+		// (e.g. CI, which is often TZ=UTC) where the two would otherwise
+		// coincidentally have the same name.
+		got, err := GetTimeZone(discordgo.EnglishUS)
+		if err != nil {
+			t.Fatalf("GetTimeZone(EnglishUS) returned error: %v", err)
+		}
+		if got != time.Local {
+			t.Errorf("GetTimeZone(EnglishUS) = %v, want time.Local", got)
+		}
+	})
 }
 
 func TestGetWeekdays(t *testing.T) {

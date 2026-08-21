@@ -61,7 +61,7 @@ type pollOptions struct {
 	OptMap  map[string]*discordgo.ApplicationCommandInteractionDataOption
 }
 
-func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptions, error) {
+func parsePollOptions(interaction *discordgo.Interaction, i18n I18n, now time.Time) (*pollOptions, error) {
 	// get timezone
 	timezone, err := GetTimeZone(interaction.Locale)
 	if err != nil {
@@ -92,8 +92,7 @@ func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptio
 		}
 	}
 	// judgement start date
-	now := time.Now().In(timezone)
-	start := resolveStartDate(now, timezone, optMap["start-date"])
+	start := resolveStartDate(now.In(timezone), timezone, optMap["start-date"])
 	return &pollOptions{
 		Title:   title,
 		Start:   start,
