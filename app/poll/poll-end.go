@@ -5,6 +5,8 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -77,27 +79,54 @@ func EndPollSlashCommand(session *discordgo.Session, interaction *discordgo.Inte
 // ChannelMessages call (Discord's per-request maximum).
 const pollEndAutocompleteScanLimit = 100
 
-// PollEndAutocomplete answers the autocomplete interaction for /poll-end's
-// "message" option. It scans the most recent messages in the invoking
-// channel for this bot's own not-yet-finalized poll messages, matches their
-// question text against the user's partial input, and returns up to
-// Discord's 25-choice limit — displaying the poll's title while the value
-// sent on selection is the message ID (consumed unchanged by
-// resolvePollMessageID). Only this bot's own messages are considered: a poll
-// attached by a different app/user would pass this filter but always fail
-// canEndPoll's later PollExpire call, since Discord rejects ending a poll
-// owned by another application.
-func PollEndAutocomplete(session *discordgo.Session, interaction *discordgo.Interaction) error {
-	data := interaction.ApplicationCommandData()
-	query := strings.ToLower(strings.TrimSpace(data.Options[0].StringValue()))
+// pollEndAutocompleteCacheTTL bounds how long a channel's poll-message scan
+// is reused across autocomplete requests for /poll-end's "message" option,
+// since Discord fires a fresh autocomplete interaction on every keystroke
+// with no client-side debounce and no way for the bot to reduce that rate.
+// This TTL is enough to collapse the burst of requests from one typed word
+// into a single REST call; no invalidation beyond the TTL is attempted — a
+// poll created or ended during that window simply won't be reflected until
+// the entry expires.
+const pollEndAutocompleteCacheTTL = 10 * time.Second
 
-	messages, err := session.ChannelMessages(interaction.ChannelID, pollEndAutocompleteScanLimit, "", "", "")
-	if err != nil {
-		log.Println("Failed to list channel messages for poll-end autocomplete:", err)
-		return respondAutocomplete(session, interaction, nil)
+// pollEndCandidate holds only the fields PollEndAutocomplete needs to build
+// a choice, so the cache doesn't retain whole Message objects (content,
+// attachments, embeds, reactions, ...) it never looks at again.
+type pollEndCandidate struct {
+	messageID string
+	title     string
+}
+
+type pollEndAutocompleteCacheEntry struct {
+	candidates []pollEndCandidate
+	fetchedAt  time.Time
+}
+
+var (
+	pollEndAutocompleteCache   = make(map[string]pollEndAutocompleteCacheEntry)
+	pollEndAutocompleteCacheMu sync.Mutex
+)
+
+// pollEndCandidates returns this bot's own non-finalized polls among the
+// channel's recent messages, reusing a cached result for up to
+// pollEndAutocompleteCacheTTL. Only this bot's own messages are considered:
+// a poll attached by a different app/user would pass this filter but always
+// fail canEndPoll's later PollExpire call, since Discord rejects ending a
+// poll owned by another application.
+func pollEndCandidates(session *discordgo.Session, channelID string) ([]pollEndCandidate, error) {
+	pollEndAutocompleteCacheMu.Lock()
+	entry, ok := pollEndAutocompleteCache[channelID]
+	pollEndAutocompleteCacheMu.Unlock()
+	if ok && time.Since(entry.fetchedAt) < pollEndAutocompleteCacheTTL {
+		return entry.candidates, nil
 	}
 
-	var choices []*discordgo.ApplicationCommandOptionChoice
+	messages, err := session.ChannelMessages(channelID, pollEndAutocompleteScanLimit, "", "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	var candidates []pollEndCandidate
 	for _, message := range messages {
 		if message.Poll == nil {
 			continue
@@ -108,13 +137,41 @@ func PollEndAutocomplete(session *discordgo.Session, interaction *discordgo.Inte
 		if pollFinalized(message.Poll) {
 			continue
 		}
-		title := message.Poll.Question.Text
-		if query != "" && !strings.Contains(strings.ToLower(title), query) {
+		candidates = append(candidates, pollEndCandidate{
+			messageID: message.ID,
+			title:     message.Poll.Question.Text,
+		})
+	}
+
+	pollEndAutocompleteCacheMu.Lock()
+	pollEndAutocompleteCache[channelID] = pollEndAutocompleteCacheEntry{candidates: candidates, fetchedAt: time.Now()}
+	pollEndAutocompleteCacheMu.Unlock()
+	return candidates, nil
+}
+
+// PollEndAutocomplete answers the autocomplete interaction for /poll-end's
+// "message" option, matching cached candidate titles against the user's
+// partial input and returning up to Discord's 25-choice limit — displaying
+// the poll's title while the value sent on selection is the message ID
+// (consumed unchanged by resolvePollMessageID).
+func PollEndAutocomplete(session *discordgo.Session, interaction *discordgo.Interaction) error {
+	data := interaction.ApplicationCommandData()
+	query := strings.ToLower(strings.TrimSpace(data.Options[0].StringValue()))
+
+	candidates, err := pollEndCandidates(session, interaction.ChannelID)
+	if err != nil {
+		log.Println("Failed to list channel messages for poll-end autocomplete:", err)
+		return respondAutocomplete(session, interaction, nil)
+	}
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	for _, candidate := range candidates {
+		if query != "" && !strings.Contains(strings.ToLower(candidate.title), query) {
 			continue
 		}
 		choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-			Name:  truncateRunes(title, 100),
-			Value: message.ID,
+			Name:  truncateRunes(candidate.title, 100),
+			Value: candidate.messageID,
 		})
 		if len(choices) == 25 {
 			break
