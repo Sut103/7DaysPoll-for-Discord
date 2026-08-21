@@ -93,23 +93,34 @@ func parsePollOptions(interaction *discordgo.Interaction, i18n I18n) (*pollOptio
 	}
 	// judgement start date
 	now := time.Now().In(timezone)
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
-	if date, ok := optMap["start-date"]; ok {
-		yearDate := fmt.Sprintf("%d/%s", now.Year(), date.StringValue())
-		yd, err := time.ParseInLocation("2006/01/02", yearDate, timezone)
-		if err == nil {
-			if start.After(yd) {
-				yd = yd.AddDate(1, 0, 0)
-			}
-			start = yd
-		}
-	}
+	start := resolveStartDate(now, timezone, optMap["start-date"])
 	return &pollOptions{
 		Title:   title,
 		Start:   start,
 		NumDays: numDays,
 		OptMap:  optMap,
 	}, nil
+}
+
+// resolveStartDate returns the poll's start date: today at local midnight in
+// timezone, or, when dateOpt is a valid "MM/DD" start-date option, that
+// day resolved to this year (or next year, if that day-of-year has already
+// passed today). dateOpt may be nil, and an unparseable value falls back to
+// today at local midnight.
+func resolveStartDate(now time.Time, timezone *time.Location, dateOpt *discordgo.ApplicationCommandInteractionDataOption) time.Time {
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, timezone)
+	if dateOpt == nil {
+		return start
+	}
+	yearDate := fmt.Sprintf("%d/%s", now.Year(), dateOpt.StringValue())
+	yd, err := time.ParseInLocation("2006/01/02", yearDate, timezone)
+	if err != nil {
+		return start
+	}
+	if start.After(yd) {
+		yd = yd.AddDate(1, 0, 0)
+	}
+	return yd
 }
 
 func buildMessageURL(guildID, channelID, messageID string) string {

@@ -65,6 +65,13 @@ The classic embed-based poll with emoji reactions is still available as `/poll-c
    go run .
    ```
 
+### Running Tests
+
+```bash
+cd app
+go test ./...
+```
+
 ## Building with Docker
 
 To build the Docker image:
