@@ -248,11 +248,12 @@ func TestParsePollOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("unrecognized error from GetTimeZone is returned", func(t *testing.T) {
+	t.Run("an unmapped locale falls back to time.Local instead of erroring", func(t *testing.T) {
 		// GetTimeZone only special-cases discordgo.Japanese and otherwise
-		// falls back to time.Local without error, so parsePollOptions
-		// currently has no locale that reaches its error branch; this test
-		// documents that GetTimeZone never errors for the locales in use.
+		// falls back to time.Local without error, so no discordgo.Locale
+		// value currently reaches parsePollOptions' `if err != nil` branch;
+		// this test only documents that fact, it does not exercise error
+		// propagation.
 		interaction := newCommandInteraction(discordgo.German, nil)
 		_, err := parsePollOptions(interaction, i18n, fixedNow)
 		if err != nil {

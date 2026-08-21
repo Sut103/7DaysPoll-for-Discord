@@ -43,7 +43,8 @@ func GetClassicPollCommand() *discordgo.ApplicationCommand {
 
 func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	i18n := GetI18n(interaction.Locale)
-	opts, err := parsePollOptions(interaction, i18n, time.Now())
+	now := time.Now()
+	opts, err := parsePollOptions(interaction, i18n, now)
 	if err != nil {
 		return err
 	}
@@ -102,7 +103,7 @@ func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction)
 
 	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
 
-	eventStart := resolveEventStartTime(start, numDays, time.Now())
+	eventStart := resolveEventStartTime(start, numDays, now)
 	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL, eventStart)
 	if err != nil {
 		log.Println("Failed to create guild scheduled event:", err)
