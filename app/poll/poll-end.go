@@ -44,10 +44,11 @@ func GetPollEndSlashCommand() *discordgo.ApplicationCommand {
 		Description: "End a poll early. Only works on a poll message in this channel.",
 		Options: []*discordgo.ApplicationCommandOption{
 			{
-				Name:        "message",
-				Description: "The poll message's link or ID (must be in this channel).",
-				Type:        discordgo.ApplicationCommandOptionString,
-				Required:    true,
+				Name:         "message",
+				Description:  "The poll message's link or ID (must be in this channel).",
+				Type:         discordgo.ApplicationCommandOptionString,
+				Required:     true,
+				Autocomplete: true,
 			},
 		},
 	}
@@ -69,6 +70,59 @@ func EndPollSlashCommand(session *discordgo.Session, interaction *discordgo.Inte
 		return respondEphemeral(session, interaction, i18n.PollNotFound)
 	}
 	return endPollMessage(session, interaction, message, i18n)
+}
+
+// pollEndAutocompleteScanLimit is how many of the channel's most recent
+// messages are scanned for poll-end autocomplete suggestions, in a single
+// ChannelMessages call (Discord's per-request maximum).
+const pollEndAutocompleteScanLimit = 100
+
+// PollEndAutocomplete answers the autocomplete interaction for /poll-end's
+// "message" option. It scans the most recent messages in the invoking
+// channel for not-yet-finalized poll messages, matches their question text
+// against the user's partial input, and returns up to Discord's 25-choice
+// limit — displaying the poll's title while the value sent on selection is
+// the message ID (consumed unchanged by resolvePollMessageID).
+func PollEndAutocomplete(session *discordgo.Session, interaction *discordgo.Interaction) error {
+	data := interaction.ApplicationCommandData()
+	query := strings.ToLower(strings.TrimSpace(data.Options[0].StringValue()))
+
+	messages, err := session.ChannelMessages(interaction.ChannelID, pollEndAutocompleteScanLimit, "", "", "")
+	if err != nil {
+		log.Println("Failed to list channel messages for poll-end autocomplete:", err)
+		return respondAutocomplete(session, interaction, nil)
+	}
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	for _, message := range messages {
+		if message.Poll == nil {
+			continue
+		}
+		if message.Poll.Results != nil && message.Poll.Results.Finalized {
+			continue
+		}
+		title := message.Poll.Question.Text
+		if query != "" && !strings.Contains(strings.ToLower(title), query) {
+			continue
+		}
+		choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+			Name:  truncateRunes(title, 100),
+			Value: message.ID,
+		})
+		if len(choices) == 25 {
+			break
+		}
+	}
+	return respondAutocomplete(session, interaction, choices)
+}
+
+func respondAutocomplete(session *discordgo.Session, interaction *discordgo.Interaction, choices []*discordgo.ApplicationCommandOptionChoice) error {
+	return session.InteractionRespond(interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
+		},
+	})
 }
 
 var (

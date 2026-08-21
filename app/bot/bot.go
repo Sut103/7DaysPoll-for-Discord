@@ -23,6 +23,14 @@ func NewBot(token string) *Bot {
 }
 
 func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Type == discordgo.InteractionApplicationCommandAutocomplete {
+		if i.ApplicationCommandData().Name == "poll-end" {
+			if err := poll.PollEndAutocomplete(s, i.Interaction); err != nil {
+				log.Println(err)
+			}
+		}
+		return
+	}
 	if i.Type != discordgo.InteractionApplicationCommand {
 		return
 	}
