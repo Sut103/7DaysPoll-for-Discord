@@ -29,6 +29,9 @@ func EndPollMessageCommand(session *discordgo.Session, interaction *discordgo.In
 	i18n := GetI18n(interaction.Locale)
 	data := interaction.ApplicationCommandData()
 
+	if data.Resolved == nil {
+		return respondEphemeral(session, interaction, i18n.PollNotFound)
+	}
 	message, ok := data.Resolved.Messages[data.TargetID]
 	if !ok {
 		return respondEphemeral(session, interaction, i18n.PollNotFound)
@@ -89,6 +92,13 @@ const pollEndAutocompleteScanLimit = 100
 // the entry expires.
 const pollEndAutocompleteCacheTTL = 10 * time.Second
 
+// pollEndAutocompleteCacheEvictAfter bounds how long a stale entry can sit
+// in pollEndAutocompleteCache before an opportunistic sweep (piggybacked on
+// the next cache write) removes it, so a long-running bot queried across
+// many channels — including ones later archived or deleted — doesn't grow
+// this map without bound.
+const pollEndAutocompleteCacheEvictAfter = 10 * pollEndAutocompleteCacheTTL
+
 // pollEndCandidate holds only the fields PollEndAutocomplete needs to build
 // a choice, so the cache doesn't retain whole Message objects (content,
 // attachments, embeds, reactions, ...) it never looks at again.
@@ -143,8 +153,14 @@ func pollEndCandidates(session *discordgo.Session, channelID string) ([]pollEndC
 		})
 	}
 
+	now := time.Now()
 	pollEndAutocompleteCacheMu.Lock()
-	pollEndAutocompleteCache[channelID] = pollEndAutocompleteCacheEntry{candidates: candidates, fetchedAt: time.Now()}
+	pollEndAutocompleteCache[channelID] = pollEndAutocompleteCacheEntry{candidates: candidates, fetchedAt: now}
+	for id, e := range pollEndAutocompleteCache {
+		if now.Sub(e.fetchedAt) > pollEndAutocompleteCacheEvictAfter {
+			delete(pollEndAutocompleteCache, id)
+		}
+	}
 	pollEndAutocompleteCacheMu.Unlock()
 	return candidates, nil
 }
@@ -240,18 +256,41 @@ func endPollMessage(session *discordgo.Session, interaction *discordgo.Interacti
 		return respondEphemeral(session, interaction, i18n.PollAlreadyEnded)
 	}
 
+	// Defer before the PollExpire REST call: if that call's latency
+	// approaches Discord's 3-second interaction response window, the
+	// eventual response could fail on an expired token even though the
+	// poll itself already ended successfully server-side. Deferring
+	// immediately acknowledges the interaction; the actual result is
+	// delivered via an edit, which has no such deadline.
+	if err := session.InteractionRespond(interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Flags: discordgo.MessageFlagsEphemeral},
+	}); err != nil {
+		log.Println("Failed to defer poll-end interaction:", err)
+		return err
+	}
+
 	if _, err := session.PollExpire(message.ChannelID, message.ID); err != nil {
 		log.Println("Failed to expire poll:", err)
-		return respondEphemeral(session, interaction, i18n.PollEndFailed)
+		return respondDeferredEphemeral(session, interaction, i18n.PollEndFailed)
 	}
-	return respondEphemeral(session, interaction, i18n.PollEndSuccess)
+	return respondDeferredEphemeral(session, interaction, i18n.PollEndSuccess)
 }
 
-// pollFinalized reports whether a poll has already ended, per Discord's
-// Results.Finalized flag (Results itself is nil until the poll has either
-// expired or been fetched with vote data).
+func respondDeferredEphemeral(session *discordgo.Session, interaction *discordgo.Interaction, content string) error {
+	_, err := session.InteractionResponseEdit(interaction, &discordgo.WebhookEdit{Content: &content})
+	return err
+}
+
+// pollFinalized reports whether a poll has already ended. Discord's
+// Results.Finalized flag is the primary signal, but Results (like Expiry)
+// "might be null even when fetching" per Discord's own API docs, so a
+// passed Expiry is used as a fallback that needs no extra API call.
 func pollFinalized(poll *discordgo.Poll) bool {
-	return poll.Results != nil && poll.Results.Finalized
+	if poll.Results != nil && poll.Results.Finalized {
+		return true
+	}
+	return poll.Expiry != nil && time.Now().After(*poll.Expiry)
 }
 
 // pollCreatorID returns the ID of the human who ran the slash command that
