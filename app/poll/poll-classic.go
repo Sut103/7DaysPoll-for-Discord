@@ -43,7 +43,8 @@ func GetClassicPollCommand() *discordgo.ApplicationCommand {
 
 func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	i18n := GetI18n(interaction.Locale)
-	opts, err := parsePollOptions(interaction, i18n)
+	now := time.Now()
+	opts, err := parsePollOptions(interaction, i18n, now)
 	if err != nil {
 		return err
 	}
@@ -102,6 +103,12 @@ func ClassicPoll(session *discordgo.Session, interaction *discordgo.Interaction)
 
 	messageURL := buildMessageURL(interaction.GuildID, interaction.ChannelID, message.ID)
 
+	// Re-read the clock here rather than reusing the `now` captured before
+	// the Discord I/O above (InteractionRespond/InteractionResponse and up
+	// to 8 sequential MessageReactionAdd calls): if enough real time has
+	// elapsed during that I/O to cross the final candidate day's midnight,
+	// a stale `now` would miss it, causing resolveEventStartTime to return
+	// an already-past ScheduledStartTime that Discord silently rejects.
 	eventStart := resolveEventStartTime(start, numDays, time.Now())
 	event, err := createScheduledEvent(session, interaction.GuildID, i18n, start, numDays, title, messageURL, eventStart)
 	if err != nil {
