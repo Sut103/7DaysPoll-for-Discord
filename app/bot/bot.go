@@ -34,6 +34,8 @@ func botHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		err = poll.ClassicPoll(s, i.Interaction)
 	case "End Poll":
 		err = poll.EndPoll(s, i.Interaction)
+	case "poll-end":
+		err = poll.EndPollCommand(s, i.Interaction)
 	default:
 		return
 	}

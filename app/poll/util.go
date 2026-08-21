@@ -7,30 +7,32 @@ import (
 )
 
 type I18n struct {
-	Weekdays            []string
-	Absence             string
-	DefaultTitle        string
-	VotingPeriod        string
-	PollMessage         string
-	PollNotFound        string
-	PollAlreadyEnded    string
-	PollEndNoPermission string
-	PollEndFailed       string
-	PollEndSuccess      string
+	Weekdays              []string
+	Absence               string
+	DefaultTitle          string
+	VotingPeriod          string
+	PollMessage           string
+	PollNotFound          string
+	PollAlreadyEnded      string
+	PollEndNoPermission   string
+	PollEndFailed         string
+	PollEndSuccess        string
+	PollEndInvalidMessage string
 }
 
 func GetI18n(lang discordgo.Locale) I18n {
 	return I18n{
-		Weekdays:            getWeekdays(lang),
-		Absence:             getAbsence(lang),
-		DefaultTitle:        getTitle(lang),
-		VotingPeriod:        getVotingPeriod(lang),
-		PollMessage:         getPollMessage(lang),
-		PollNotFound:        getPollNotFound(lang),
-		PollAlreadyEnded:    getPollAlreadyEnded(lang),
-		PollEndNoPermission: getPollEndNoPermission(lang),
-		PollEndFailed:       getPollEndFailed(lang),
-		PollEndSuccess:      getPollEndSuccess(lang),
+		Weekdays:              getWeekdays(lang),
+		Absence:               getAbsence(lang),
+		DefaultTitle:          getTitle(lang),
+		VotingPeriod:          getVotingPeriod(lang),
+		PollMessage:           getPollMessage(lang),
+		PollNotFound:          getPollNotFound(lang),
+		PollAlreadyEnded:      getPollAlreadyEnded(lang),
+		PollEndNoPermission:   getPollEndNoPermission(lang),
+		PollEndFailed:         getPollEndFailed(lang),
+		PollEndSuccess:        getPollEndSuccess(lang),
+		PollEndInvalidMessage: getPollEndInvalidMessage(lang),
 	}
 }
 
@@ -161,6 +163,18 @@ func getPollEndSuccess(lang discordgo.Locale) string {
 	name, ok := pollEndSuccess[lang]
 	if !ok {
 		return pollEndSuccess[discordgo.EnglishUS]
+	}
+	return name
+}
+
+func getPollEndInvalidMessage(lang discordgo.Locale) string {
+	pollEndInvalidMessage := map[discordgo.Locale]string{
+		discordgo.EnglishUS: "That doesn't look like a message in this channel. Use a message link or ID from this channel.",
+		discordgo.Japanese:  "このチャンネル内のメッセージとして認識できませんでした。このチャンネルのメッセージリンクかIDを指定してください。",
+	}
+	name, ok := pollEndInvalidMessage[lang]
+	if !ok {
+		return pollEndInvalidMessage[discordgo.EnglishUS]
 	}
 	return name
 }

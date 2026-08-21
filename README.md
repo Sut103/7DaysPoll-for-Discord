@@ -39,7 +39,7 @@ You can combine these parameters as needed:
 
 The classic embed-based poll with emoji reactions is still available as `/poll-classic`. It supports the same `title`, `start-date`, and `days` parameters and automatically counts unique voters via reactions.
 
-To end a poll before its scheduled duration is up, right-click (or long-press on mobile) the poll message and choose **Apps → End Poll**. Only the member who created the poll, or a member with the "Manage Messages" permission, can end it.
+To end a poll before its scheduled duration is up, right-click (or long-press on mobile) the poll message and choose **Apps → End Poll**. The same action is available as a slash command: `/poll-end message:[link or ID]` — paste the poll message's link, or its ID, from the current channel. Either way, only the member who created the poll, or a member with the "Manage Messages" permission, can end it.
 
 ## Development Environment
 

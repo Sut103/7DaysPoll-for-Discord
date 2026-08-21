@@ -14,6 +14,7 @@ func Register(session *discordgo.Session) error {
 		poll.GetNativePollCommand(),
 		poll.GetClassicPollCommand(),
 		poll.GetPollEndCommand(),
+		poll.GetPollEndSlashCommand(),
 	}
 	for _, command := range commands {
 		_, err := session.ApplicationCommandCreate(session.State.User.ID, "", command)
