@@ -9,9 +9,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// GetPollEndCommand registers a message context-menu command ("Apps" ->
-// right-click a poll message) that lets a member end that poll early.
-func GetPollEndCommand() *discordgo.ApplicationCommand {
+// GetPollEndMessageCommand registers a message context-menu command ("Apps"
+// -> right-click a poll message) that lets a member end that poll early.
+func GetPollEndMessageCommand() *discordgo.ApplicationCommand {
 	return &discordgo.ApplicationCommand{
 		Type: discordgo.MessageApplicationCommand,
 		Name: "End Poll",
@@ -21,9 +21,9 @@ func GetPollEndCommand() *discordgo.ApplicationCommand {
 	}
 }
 
-// EndPoll expires the poll attached to the message the context-menu command
-// was invoked on.
-func EndPoll(session *discordgo.Session, interaction *discordgo.Interaction) error {
+// EndPollMessageCommand expires the poll attached to the message the
+// context-menu command was invoked on.
+func EndPollMessageCommand(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	i18n := GetI18n(interaction.Locale)
 	data := interaction.ApplicationCommandData()
 
@@ -53,10 +53,10 @@ func GetPollEndSlashCommand() *discordgo.ApplicationCommand {
 	}
 }
 
-// EndPollCommand is the "/poll-end" handler. It resolves the "message"
+// EndPollSlashCommand is the "/poll-end" handler. It resolves the "message"
 // option to a message in the current channel and delegates to the same
 // endPollMessage logic the "End Poll" context-menu command uses.
-func EndPollCommand(session *discordgo.Session, interaction *discordgo.Interaction) error {
+func EndPollSlashCommand(session *discordgo.Session, interaction *discordgo.Interaction) error {
 	i18n := GetI18n(interaction.Locale)
 	options := interaction.ApplicationCommandData().Options
 
